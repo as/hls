@@ -1,4 +1,4 @@
-// Package hls implements an HLS codec for Master and Media files in m3u format
+// Package hls implement an HLS codec for Master and Media files in m3u format
 // At this time, the codec only supports decoding
 package hls
 
@@ -123,7 +123,7 @@ type Key struct {
 }
 
 type Map struct {
-	URI string `hls:"URI,attr"`
+	URI string `hls:"URI"`
 }
 
 type Start struct {
@@ -137,25 +137,25 @@ type Inf struct {
 }
 
 type MediaInfo struct {
-	Type       string `hls:"TYPE,attr"`
-	Group      string `hls:"GROUP-ID,attr"`
-	Name       string `hls:"NAME,attr"`
-	Default    bool   `hls:"DEFAULT,attr"`
-	Autoselect bool   `hls:"AUTOSELECT,attr"`
-	Forced     bool   `hls:"FORCED,attr"`
-	Lang       string `hls:"LANGUAGE,attr"`
-	URI        string `hls:"URI,attr"`
+	Type       string `hls:"TYPE"`
+	Group      string `hls:"GROUP-ID"`
+	Name       string `hls:"NAME"`
+	Default    bool   `hls:"DEFAULT"`
+	Autoselect bool   `hls:"AUTOSELECT"`
+	Forced     bool   `hls:"FORCED"`
+	Lang       string `hls:"LANGUAGE"`
+	URI        string `hls:"URI"`
 }
 
 type StreamInfo struct {
 	URL string `hls:""`
 
-	Index        int         `hls:"PROGRAM-ID,attr"`
-	Framerate    float64     `hls:"FRAME-RATE,attr"`
-	Bandwidth    int         `hls:"BANDWIDTH,attr"`
-	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH,attr"`
-	Codecs       []string    `hls:"CODECS,attr"`
-	Resolution   image.Point `hls:"RESOLUTION,attr"`
-	VideoRange   string      `hls:"VIDEO-RANGE,attr"`
-	HDCP         string      `hls:"HDCP-LEVEL,attr"`
+	Index        int         `hls:"PROGRAM-ID"`
+	Framerate    float64     `hls:"FRAME-RATE"`
+	Bandwidth    int         `hls:"BANDWIDTH"`
+	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH"`
+	Codecs       []string    `hls:"CODECS"`
+	Resolution   image.Point `hls:"RESOLUTION"`
+	VideoRange   string      `hls:"VIDEO-RANGE"`
+	HDCP         string      `hls:"HDCP-LEVEL"`
 }
