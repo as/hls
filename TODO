@@ -1,0 +1,6 @@
+lexer parse utf8 instead of bytes
+lexer validate runs and return errors (currently too resilient)
+encoding support / marshalling
+caching/reflection layer needs better checks for types
+finish package documentation
+m3u: remove map and replace with faster associative array

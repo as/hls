@@ -1,8 +1,13 @@
-# hls
+package hls
 
-`go get github.com/as/hls/...`
+import (
+	"image"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+)
 
-```
 func TestDecodeMaster(t *testing.T) {
 	sample := `
 	#EXTM3U
@@ -40,9 +45,7 @@ func TestDecodeMaster(t *testing.T) {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", m, want)
 	}
 }
-```
 
-```
 func TestDecodeMedia(t *testing.T) {
 	sample := `
 	#EXTM3U
@@ -85,8 +88,10 @@ func TestDecodeMedia(t *testing.T) {
 
 	m := Media{}
 	m.DecodeHLS(strings.NewReader(sample))
+	if m.Version != 3 {
+		t.Fatalf("version: %v", m.Version)
+	}
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", m, want)
 	}
 }
-```
