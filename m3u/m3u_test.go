@@ -6,12 +6,27 @@ import (
 	"testing"
 )
 
+func TestLexZeroLengthArg(t *testing.T) {
+	tag, err := Parse(strings.NewReader("#EXTINF:10.0,\nfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Tag{Name: "EXTINF", Arg: []Value{{V: "10.0"}, {V: ""}}, Line: []string{"file", "\n"}}
+	if !reflect.DeepEqual(want, tag[0]) {
+		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", tag[0], want)
+	}
+}
+
 func TestParse(t *testing.T) {
 	var raw = `
 #EXTM3U
 #ABC:a=A,b=B,c=C,list="a,b,c",arg0,arg1,arg2
 line0
 line1
+#DEF:10.0,desc
+file0
+#GHI:11.0,
+file1
 #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=648224,RESOLUTION=640x360,CODECS="avc1.4d401e,mp4a.40.2"
 https://01.m3u8
 #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=443680,RESOLUTION=400x224,CODECS="avc1.42e00d,mp4a.40.2"
@@ -35,6 +50,16 @@ https://02.m3u8
 			},
 			Arg:  []Value{{V: "arg0"}, {V: "arg1"}, {V: "arg2"}},
 			Line: []string{"line0", "line1"},
+		},
+		{
+			Name: "DEF",
+			Arg:  []Value{{V: "10.0"}, {V: "desc"}},
+			Line: []string{"file0"},
+		},
+		{
+			Name: "GHI",
+			Arg:  []Value{{V: "11.0"}, {V: ""}},
+			Line: []string{"file1"},
 		},
 		{
 			Name: "EXT-X-STREAM-INF",

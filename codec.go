@@ -170,6 +170,13 @@ func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 			val := t.Value(key)
 			rf.Set(reflect.ValueOf(setSlice(val)))
 		}
+	case time.Time:
+		const ISO8601 = "2006-01-02T15:04:05.000Z"
+		return func(rf reflect.Value, t m3u.Tag, key string) {
+			val := t.Value(key)
+			tm, _ := time.Parse(ISO8601, val)
+			rf.Set(reflect.ValueOf(tm))
+		}
 	case time.Duration:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
 			val := t.Value(key)

@@ -5,6 +5,7 @@ package hls
 import (
 	"image"
 	"io"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -86,11 +87,20 @@ func (m *Media) DecodeHLS(r io.Reader) error {
 }
 
 type File struct {
-	Discontinuous bool  `hls:"EXT-X-DISCONTINUITY,omitempty"`
-	Range         Range `hls:"EXT-X-BYTERANGE,omitempty"`
-	Map           Map   `hls:"EXT-X-MAP,omitempty"`
-	Key           Key   `hls:"EXT-X-KEY,omitempty"`
-	Inf           Inf   `hls:"EXTINF"`
+	Discontinuous bool      `hls:"EXT-X-DISCONTINUITY,omitempty"`
+	Time          time.Time `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
+	Range         Range     `hls:"EXT-X-BYTERANGE,omitempty"`
+	Map           Map       `hls:"EXT-X-MAP,omitempty"`
+	Key           Key       `hls:"EXT-X-KEY,omitempty"`
+	Inf           Inf       `hls:"EXTINF"`
+}
+
+// Location returns the media URL relative to base. It conditionally
+// applies the base URL in cases where the media URL is a relative
+// path. Base may be nil. This function never returns nil, but may
+// return an empty URL. For error handling, process f.Inf.URL manually
+func (f File) Location(base *url.URL) *url.URL {
+	return location(base, f.Inf.URL)
 }
 
 // sticky returns a copy of f with only sticky field set
@@ -132,8 +142,10 @@ type Start struct {
 }
 
 type Inf struct {
-	Duration time.Duration `hls:"0"`
-	URL      string        `hls:"1"`
+	Duration    time.Duration `hls:"$1"`
+	Description string        `hls:"$2"`
+
+	URL string `hls:"$file"`
 }
 
 type MediaInfo struct {
@@ -148,7 +160,7 @@ type MediaInfo struct {
 }
 
 type StreamInfo struct {
-	URL string `hls:""`
+	URL string `hls:"$file"`
 
 	Index        int         `hls:"PROGRAM-ID"`
 	Framerate    float64     `hls:"FRAME-RATE"`
@@ -158,4 +170,28 @@ type StreamInfo struct {
 	Resolution   image.Point `hls:"RESOLUTION"`
 	VideoRange   string      `hls:"VIDEO-RANGE"`
 	HDCP         string      `hls:"HDCP-LEVEL"`
+
+	Audio    string `hls:"AUDIO"`
+	Video    string `hls:"VIDEO"`
+	Subtitle string `hls:"SUBTITLES"`
+	Caption  string `hls:"CLOSED-CAPTIONS"`
+}
+
+// Location returns the stream URL relative to base. It conditionally
+// applies the base URL in cases where the stream URL is a relative
+// path. Base may be nil. This function never returns nil, but may
+// return an empty URL. For error handling, process s.URLmanually.
+func (s StreamInfo) Location(base *url.URL) *url.URL {
+	return location(base, s.URL)
+}
+
+func location(base *url.URL, ref string) *url.URL {
+	if base == nil {
+		base = &url.URL{}
+	}
+	u, err := url.Parse(ref)
+	if err != nil {
+		return u
+	}
+	return base.ResolveReference(u)
 }

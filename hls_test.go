@@ -59,14 +59,16 @@ func TestDecodeMedia(t *testing.T) {
 	#EXTINF:10.0,
 	ad0.ts
 	#EXTINF:8.0,
-	ad1.ts
+	ad1.ts?m=142
 	#EXT-X-DISCONTINUITY
+	#EXT-X-PROGRAM-DATE-TIME:2021-01-11T07:59:41.005Z
 	#EXTINF:10.0,
 	movieA.ts
 	#EXTINF:10.0,
 	movieB.ts
 	#EXT-X-ENDLIST
 	`
+	tm, _ := time.Parse("2006-01-02T15:04:05.000Z", "2021-01-11T07:59:41.005Z")
 	want := Media{
 		MediaHeader: MediaHeader{
 			Version:       3,
@@ -79,10 +81,10 @@ func TestDecodeMedia(t *testing.T) {
 			End:           true,
 		},
 		File: []File{
-			{Inf: Inf{10 * time.Second, "ad0.ts"}},
-			{Inf: Inf{8 * time.Second, "ad1.ts"}},
-			{Inf: Inf{10 * time.Second, "movieA.ts"}, Discontinuous: true},
-			{Inf: Inf{10 * time.Second, "movieB.ts"}},
+			{Inf: Inf{10 * time.Second, "", "ad0.ts"}},
+			{Inf: Inf{8 * time.Second, "", "ad1.ts?m=142"}},
+			{Inf: Inf{10 * time.Second, "", "movieA.ts"}, Discontinuous: true, Time: tm},
+			{Inf: Inf{10 * time.Second, "", "movieB.ts"}},
 		},
 	}
 
@@ -92,6 +94,6 @@ func TestDecodeMedia(t *testing.T) {
 		t.Fatalf("version: %v", m.Version)
 	}
 	if !reflect.DeepEqual(m, want) {
-		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", m, want)
+		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", m, want)
 	}
 }

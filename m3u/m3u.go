@@ -10,21 +10,32 @@ type Tag struct {
 	Line []string
 }
 
-func (t Tag) Value(key string) string {
+func (t Tag) Value(key string) (val string) {
 	n := len(t.Arg)
 	switch key {
-	case "", "0":
-		n = 0
-	case "1":
+	case "$file":
+		// $file is the first line after the tag, associated data
+		if len(t.Line) > 0 {
+			return t.Line[0]
+		}
+	case "":
+		n = 0 // key empty, tags value is its first argument
+	case "$1":
+		n = 0 // explicit args $1-$4
+	case "$2":
 		n = 1
+	case "$3":
+		n = 2
+	case "$4":
+		n = 3
+	case "$5":
+		n = 4
 	}
 	if n < len(t.Arg) {
 		return t.Arg[n].V
 	}
-	if key == "" && len(t.Line) > 0 {
-		return t.Line[0]
-	}
 
+	// key value lookup for key=value args
 	s, _ := t.Flag[key]
 	return s.V
 

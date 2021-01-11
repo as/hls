@@ -19,12 +19,12 @@ func Parse(r io.Reader) (t []Tag, err error) {
 
 type lex struct {
 	*bufio.Reader
-
-	cur string
-	err error
-	b   byte
-
 	tag Tag
+
+	cur    string
+	err    error
+	b      byte
+	cankey bool
 }
 
 func newlex(r io.Reader) *lex {
@@ -52,15 +52,20 @@ func (s *lex) lexAttr() bool {
 		return false
 	}
 
-	for s.until("=,\n") {
+	delims := "=,\n"
+	for s.until(delims) {
 		f := Value{V: s.token()}
 		if !s.lexAttrValue(f.V) {
 			s.tag.Arg = append(s.tag.Arg, f)
+			// after we encounter the first keyless field, stop looking
+			// for equal signs, since they might be part of the url
+			// in EXTINF tags
+			delims = ",\n"
 		}
 		if s.skip() != "," {
 			break
 		}
-		s.whitespace()
+		//s.whitespace()
 	}
 	return s.ok()
 }
