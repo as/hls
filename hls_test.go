@@ -74,7 +74,7 @@ func TestDecodeMedia(t *testing.T) {
 			Version:       3,
 			Independent:   true,
 			Type:          "EVENT",
-			Duration:      10 * time.Second,
+			Target:        10 * time.Second,
 			Sequence:      1,
 			Discontinuity: 2,
 			Start:         Start{Offset: 25 * time.Second, Precise: true},

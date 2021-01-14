@@ -41,11 +41,20 @@ type MediaHeader struct {
 	Version       int           `hls:"EXT-X-VERSION"`
 	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
 	Type          string        `hls:"EXT-X-PLAYLIST-TYPE"`
-	Duration      time.Duration `hls:"EXT-X-TARGETDURATION"`
+	Target        time.Duration `hls:"EXT-X-TARGETDURATION"`
 	Start         Start         `hls:"EXT-X-START"`
 	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE"`
 	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE"`
 	End           bool          `hls:"EXT-X-ENDLIST"`
+}
+
+// Runtime measures the cumulative duration of the given
+// window of segments (files)
+func Runtime(f ...File) (cumulative time.Duration) {
+	for _, f := range f {
+		cumulative += f.Inf.Duration
+	}
+	return
 }
 
 func (m Media) MarshalHLS() (t []m3u.Tag, err error) {
