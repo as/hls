@@ -3,6 +3,7 @@
 package hls
 
 import (
+	"errors"
 	"image"
 	"io"
 	"net/url"
@@ -13,22 +14,43 @@ import (
 	"github.com/as/hls/m3u"
 )
 
+var (
+	ErrHeader = errors.New("hls: no m3u8 tag")
+	ErrEmpty  = errors.New("hls: empty playlist")
+)
+
 // Master is a master playlist. It contains a list of streams (variants) and
 // media information associated by group id. By convention, the master playlist is immutable.
 type Master struct {
-	M3U         bool         `hls:"EXTM3U"`
-	Version     int          `hls:"EXT-X-VERSION"`
-	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
-	Media       []MediaInfo  `hls:"EXT-X-MEDIA"`
-	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF"`
+	M3U         bool          `hls:"EXTM3U"`
+	Version     int           `hls:"EXT-X-VERSION"`
+	Independent bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
+	Target      time.Duration `hls:"EXT-X-TARGETDURATION"`
+	Media       []MediaInfo   `hls:"EXT-X-MEDIA"`
+	Stream      []StreamInfo  `hls:"EXT-X-STREAM-INF"`
 }
 
+// DecodeHLS decodes the master playlist into m.
 func (m *Master) DecodeHLS(r io.Reader) error {
 	t, err := m3u.Parse(r)
 	if err != nil {
 		return err
 	}
-	return unmarshalTag0(m, t...)
+	if err = unmarshalTag0(m, t...); err != nil {
+		return err
+	}
+	if !m.M3U {
+		return ErrHeader
+	}
+	if len(m.Stream) == 0 {
+		return ErrEmpty
+	}
+	return nil
+}
+
+// Len returns the number of variant streams
+func (m *Master) Len() int {
+	return len(m.Stream)
 }
 
 // Media is a media playlist. It consists of a header and one or more files. A file
@@ -73,6 +95,9 @@ func (m Media) MarshalHLS() (t []m3u.Tag, err error) {
 	return t, err
 }
 
+// DecodeHLS decodes the playlist in r and stores the
+// result in m. It returns ErrEmpty if the playlist is
+// well-formed, but contains no variant streams.
 func (m *Media) DecodeHLS(r io.Reader) error {
 	t, err := m3u.Parse(r)
 	if err != nil {
@@ -80,6 +105,9 @@ func (m *Media) DecodeHLS(r io.Reader) error {
 	}
 	if err := unmarshalTag0(&m.MediaHeader, t...); err != nil {
 		return err
+	}
+	if !m.M3U {
+		return ErrHeader
 	}
 	file := File{}
 	i := 0
@@ -94,6 +122,10 @@ func (m *Media) DecodeHLS(r io.Reader) error {
 		m.File = append(m.File, file)
 		file = file.sticky()
 	}
+
+	if m.Len() == 0 {
+		return ErrEmpty
+	}
 	return nil
 }
 
@@ -103,6 +135,11 @@ func (m *Media) Current() (f File) {
 		return
 	}
 	return m.File[len(m.File)-1]
+}
+
+// Len returns the number of segments visibile to the playlist
+func (m *Media) Len() int {
+	return len(m.File)
 }
 
 type File struct {
@@ -120,6 +157,15 @@ type File struct {
 // return an empty URL. For error handling, process f.Inf.URL manually
 func (f File) Location(base *url.URL) *url.URL {
 	return location(base, f.Inf.URL)
+}
+
+// Duration returns the segment duration. An optional target can
+// be provided as a fallback in case the duration was not set.
+func (f File) Duration(target time.Duration) time.Duration {
+	if f.Inf.Duration == 0 {
+		return target
+	}
+	return f.Inf.Duration
 }
 
 // sticky returns a copy of f with only sticky field set

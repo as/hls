@@ -62,7 +62,17 @@ func TestDecodeMedia(t *testing.T) {
 		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", m, want)
 	}
 }
-
+func TestDecodeValidation(t *testing.T) {
+	m := Media{}
+	h, w := m.DecodeHLS(strings.NewReader("")), ErrHeader
+	if h != w {
+		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", h, w)
+	}
+	h, w = m.DecodeHLS(strings.NewReader("#EXTM3U")), ErrEmpty
+	if h != w {
+		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", h, w)
+	}
+}
 func BenchmarkDecodeMaster(b *testing.B) {
 	benchDecode(b, &Master{}, strings.NewReader(sampleMaster))
 }
