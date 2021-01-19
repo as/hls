@@ -16,6 +16,7 @@ import (
 // Master is a master playlist. It contains a list of streams (variants) and
 // media information associated by group id. By convention, the master playlist is immutable.
 type Master struct {
+	M3U         bool         `hls:"EXTM3U"`
 	Version     int          `hls:"EXT-X-VERSION"`
 	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
 	Media       []MediaInfo  `hls:"EXT-X-MEDIA"`
@@ -38,6 +39,7 @@ type Media struct {
 }
 
 type MediaHeader struct {
+	M3U           bool          `hls:"EXTM3U"`
 	Version       int           `hls:"EXT-X-VERSION"`
 	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
 	Type          string        `hls:"EXT-X-PLAYLIST-TYPE"`
