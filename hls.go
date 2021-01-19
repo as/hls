@@ -97,6 +97,14 @@ func (m *Media) DecodeHLS(r io.Reader) error {
 	return nil
 }
 
+// Current returns the most-recent segment in the stream
+func (m *Media) Current() (f File) {
+	if len(m.File) == 0 {
+		return
+	}
+	return m.File[len(m.File)-1]
+}
+
 type File struct {
 	Discontinuous bool      `hls:"EXT-X-DISCONTINUITY,omitempty"`
 	Time          time.Time `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
