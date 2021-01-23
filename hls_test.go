@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+func TestDecode(t *testing.T) {
+	var m bool
+
+	if _, m, _ = Decode(strings.NewReader(sampleMaster)); !m {
+		t.Fatalf("master playlist not detected")
+	}
+	if _, m, _ = Decode(strings.NewReader(sampleMedia)); m {
+		t.Fatalf("media detected as master")
+	}
+	if _, m, _ = Decode(strings.NewReader("")); m {
+		t.Fatalf("empty detected as master")
+	}
+}
+
 func TestDecodeMaster(t *testing.T) {
 	want := Master{
 		M3U:         true,
@@ -25,7 +39,7 @@ func TestDecodeMaster(t *testing.T) {
 	}
 
 	m := Master{}
-	m.DecodeHLS(strings.NewReader(sampleMaster)) // init.go:/sampleMaster/
+	m.Decode(strings.NewReader(sampleMaster)) // init.go:/sampleMaster/
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", m, want)
 	}
@@ -54,7 +68,7 @@ func TestDecodeMedia(t *testing.T) {
 	}
 
 	m := Media{}
-	m.DecodeHLS(strings.NewReader(sampleMedia)) // init.go:/sampleMedia/
+	m.Decode(strings.NewReader(sampleMedia)) // init.go:/sampleMedia/
 	if m.Version != 3 {
 		t.Fatalf("version: %v", m.Version)
 	}
@@ -64,11 +78,11 @@ func TestDecodeMedia(t *testing.T) {
 }
 func TestDecodeValidation(t *testing.T) {
 	m := Media{}
-	h, w := m.DecodeHLS(strings.NewReader("")), ErrHeader
+	h, w := m.Decode(strings.NewReader("")), ErrHeader
 	if h != w {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", h, w)
 	}
-	h, w = m.DecodeHLS(strings.NewReader("#EXTM3U")), ErrEmpty
+	h, w = m.Decode(strings.NewReader("#EXTM3U")), ErrEmpty
 	if h != w {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", h, w)
 	}
@@ -80,9 +94,9 @@ func BenchmarkDecodeMedia(b *testing.B) {
 	benchDecode(b, &Media{}, strings.NewReader(sampleMedia))
 }
 
-func benchDecode(b *testing.B, dst interface{ DecodeHLS(io.Reader) error }, src io.ReadSeeker) {
+func benchDecode(b *testing.B, dst interface{ Decode(io.Reader) error }, src io.ReadSeeker) {
 	for n := 0; n < b.N; n++ {
 		src.Seek(0, 0)
-		dst.DecodeHLS(src)
+		dst.Decode(src)
 	}
 }

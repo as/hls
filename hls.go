@@ -14,29 +14,64 @@ import (
 	"github.com/as/hls/m3u"
 )
 
+// Media playlist types
+const (
+	Vod   = "VOD"   // immutable
+	Event = "EVENT" // append-only
+	Live  = ""      // sliding-window
+)
+
 var (
 	ErrHeader = errors.New("hls: no m3u8 tag")
 	ErrEmpty  = errors.New("hls: empty playlist")
+	ErrType   = errors.New("hls: playlist type mismatch")
 )
+
+// Decode reads an HLS playlist from the reader and tokenizes
+// it into a list of tags. Master is true if and only if the input looks
+// like a master playlist.
+func Decode(r io.Reader) (t []m3u.Tag, master bool, err error) {
+	t, err = m3u.Parse(r)
+	for _, v := range t {
+		switch v.Name {
+		case "EXT-X-MEDIA":
+			fallthrough
+		case "EXT-X-STREAM-INF":
+			fallthrough
+		case "EXT-X-I-FRAME-STREAM-INF":
+			return t, true, err // master
+		case "EXTINF":
+			return t, false, err // media
+		}
+	}
+	// may be empty live media
+	return t, false, err
+}
 
 // Master is a master playlist. It contains a list of streams (variants) and
 // media information associated by group id. By convention, the master playlist is immutable.
 type Master struct {
-	M3U         bool          `hls:"EXTM3U"`
-	Version     int           `hls:"EXT-X-VERSION"`
-	Independent bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
-	Target      time.Duration `hls:"EXT-X-TARGETDURATION"`
-	Media       []MediaInfo   `hls:"EXT-X-MEDIA"`
-	Stream      []StreamInfo  `hls:"EXT-X-STREAM-INF"`
+	M3U         bool         `hls:"EXTM3U"`
+	Version     int          `hls:"EXT-X-VERSION"`
+	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
+	Media       []MediaInfo  `hls:"EXT-X-MEDIA"`
+	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF"`
 }
 
-// DecodeHLS decodes the master playlist into m.
-func (m *Master) DecodeHLS(r io.Reader) error {
-	t, err := m3u.Parse(r)
+// Decode decodes the master playlist into m.
+func (m *Master) Decode(r io.Reader) error {
+	t, master, err := Decode(r)
 	if err != nil {
 		return err
 	}
-	if err = unmarshalTag0(m, t...); err != nil {
+	if !master {
+		return ErrType
+	}
+	return m.DecodeTag(t...)
+}
+
+func (m *Master) DecodeTag(t ...m3u.Tag) error {
+	if err := unmarshalTag0(m, t...); err != nil {
 		return err
 	}
 	if !m.M3U {
@@ -81,28 +116,22 @@ func Runtime(f ...File) (cumulative time.Duration) {
 	return
 }
 
-func (m Media) MarshalHLS() (t []m3u.Tag, err error) {
-	if t, err = marshalTag0(m.MediaHeader); err != nil {
-		return t, err
-	}
-	for _, v := range m.File {
-		tmp, err := marshalTag0(v)
-		t = append(t, tmp...)
-		if err != nil {
-			return t, err
-		}
-	}
-	return t, err
-}
-
-// DecodeHLS decodes the playlist in r and stores the
+// Decode decodes the playlist in r and stores the
 // result in m. It returns ErrEmpty if the playlist is
 // well-formed, but contains no variant streams.
-func (m *Media) DecodeHLS(r io.Reader) error {
-	t, err := m3u.Parse(r)
+func (m *Media) Decode(r io.Reader) error {
+	t, master, err := Decode(r)
 	if err != nil {
 		return err
 	}
+	if master {
+		return ErrType
+	}
+	return m.DecodeTag(t...)
+}
+
+// DecodeTag decodes the list of tags as a media playlist
+func (m *Media) DecodeTag(t ...m3u.Tag) error {
 	if err := unmarshalTag0(&m.MediaHeader, t...); err != nil {
 		return err
 	}
@@ -140,6 +169,20 @@ func (m *Media) Current() (f File) {
 // Len returns the number of segments visibile to the playlist
 func (m *Media) Len() int {
 	return len(m.File)
+}
+
+func (m Media) EncodeTag() (t []m3u.Tag, err error) {
+	if t, err = marshalTag0(m.MediaHeader); err != nil {
+		return t, err
+	}
+	for _, v := range m.File {
+		tmp, err := marshalTag0(v)
+		t = append(t, tmp...)
+		if err != nil {
+			return t, err
+		}
+	}
+	return t, err
 }
 
 type File struct {

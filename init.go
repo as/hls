@@ -4,9 +4,9 @@ import "strings"
 
 func init() {
 	m0 := Master{}
-	m0.DecodeHLS(strings.NewReader(sampleMaster))
+	m0.Decode(strings.NewReader(sampleMaster))
 	m1 := Media{}
-	m1.DecodeHLS(strings.NewReader(sampleMedia))
+	m1.Decode(strings.NewReader(sampleMedia))
 }
 
 var sampleMedia = `
