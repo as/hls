@@ -1,12 +1,16 @@
 package hls
 
-import "strings"
+import (
+	"strings"
+)
 
 func init() {
 	m0 := Master{}
 	m0.Decode(strings.NewReader(sampleMaster))
 	m1 := Media{}
 	m1.Decode(strings.NewReader(sampleMedia))
+	m2 := Media{}
+	m2.Decode(strings.NewReader(sampleFrag))
 }
 
 var sampleMedia = `
@@ -47,3 +51,31 @@ var sampleMaster = `
 	#EXT-X-STREAM-INF:BANDWIDTH=6666,AVERAGE-BANDWIDTH=6000,RESOLUTION=6x6,FRAME-RATE=29.970,CODECS="avc1.4D400D,mp4a.40.2"
 	m6.m3u8
 	`
+
+var sampleFrag = `
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXT-X-MAP:URI="init.mp4"
+#EXTINF:6.000000,
+0.m4s
+#EXTINF:6.000000,
+1.m4s
+#EXTINF:6.000000,
+2.m4s
+#EXTINF:6.000000,
+3.m4s
+#EXTINF:6.000000,
+4.m4s
+#EXTINF:6.000000,
+5.m4s
+#EXTINF:6.000000,
+6.m4s
+#EXTINF:6.000000,
+7.m4s
+#EXTINF:4.208333,
+8.m4s
+#EXT-X-ENDLIST
+`

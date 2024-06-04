@@ -202,6 +202,17 @@ func (f File) Location(base *url.URL) *url.URL {
 	return location(base, f.Inf.URL)
 }
 
+// Init returns the initialization segment for fragmented mp4 files
+// as an absolute url relative to base. If there is no initialization
+// segment it returns an empty URL.
+func (f File) Init(base *url.URL) *url.URL {
+	u := f.Map.URI
+	if u == "" {
+		return &url.URL{}
+	}
+	return location(base, u)
+}
+
 // Duration returns the segment duration. An optional target can
 // be provided as a fallback in case the duration was not set.
 func (f File) Duration(target time.Duration) time.Duration {
