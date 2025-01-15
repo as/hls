@@ -44,6 +44,17 @@ type sym struct {
 	names []label
 }
 
+var extratag = map[string]func() reflect.Value{}
+
+func RegisterTag(name string, value interface{}) {
+	register(reflect.ValueOf(value), false)
+	t := reflect.TypeOf(value)
+	new := func() reflect.Value {
+		return reflect.Indirect(reflect.New(t))
+	}
+	extratag[name] = new
+}
+
 // register registers the reflect.Value as a symbol exactly once
 // and returns the result. it calls itself recursively on all applicable
 // types recognized by the package
@@ -58,7 +69,9 @@ func register(v reflect.Value, attr bool) sym {
 	}
 	switch t.Kind() {
 	case reflect.Ptr:
-		return register(v.Elem(), attr)
+		s := register(v.Elem(), attr)
+		symtab[t] = s
+		return s
 	case reflect.Slice:
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
@@ -96,6 +109,65 @@ func parselabel(sf reflect.StructField) *label {
 	return &l
 }
 
+func settag(rf reflect.Value, t *m3u.Tag)  {
+	type tagsetter interface{
+		settag(t *m3u.Tag)
+	}
+	w := m3u.Value{}
+	switch val := rf.Interface().(type) {
+	case tagsetter:
+		val.settag(t)
+	case float32, float64:
+		w.V = fmt.Sprint(val)
+	case uint8, uint16, uint32, uint64, uint, int8, int16, int32, int64, int:
+		w.V = fmt.Sprint(val)
+	case string:
+		w.V = fmt.Sprint(val)
+	case time.Time:
+		w.V = fmt.Sprint(val.Format(time.RFC3339Nano))
+	case time.Duration:
+		w.V = fmt.Sprint(val.Seconds())
+	case image.Point:
+		w.V = fmt.Sprintf("%dx%d", val.X, val.Y)
+	case interface{}:
+		switch val := rf.Type(); val.Kind() {
+		case reflect.Struct:
+			sym := register(rf, false)
+			if t.Flag == nil{ t.Flag = map[string]m3u.Value{} }
+			for _, label := range sym.names {
+				attr := tostring(rf.Field(sym.field[label.name].index))
+				if attr == ""{
+					continue
+				}
+				t.Keys = append(t.Keys, label.name)
+				t.Flag[label.name] = m3u.Value{V: attr}
+			}
+		default:
+		return
+		}
+	}
+	t.Arg = append(t.Arg, w)
+}
+
+func tostring(rf reflect.Value) string{
+	if rf.IsZero(){
+		return ""
+	}
+	switch t := rf.Interface().(type) {
+	case bool:
+		if t {
+			return "YES"
+		}
+	case time.Time:
+		return fmt.Sprint(t.Format(time.RFC3339Nano))
+	case time.Duration:
+		return fmt.Sprint(t.Seconds())
+	case interface{}:
+		return fmt.Sprint(t)
+	}
+	return ""
+}
+
 func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 	switch rf.Interface().(type) {
 	case bool:
@@ -107,44 +179,36 @@ func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 		}
 	case float32, float64:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			f, _ := strconv.ParseFloat(val, 64)
+			f, _ := strconv.ParseFloat(t.Value(key), 64)
 			rf.SetFloat(float64(f))
 		}
 	case uint8, uint16, uint32, uint64, uint, int8, int16, int32, int64, int:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			i, _ := strconv.Atoi(val)
+			i, _ := strconv.Atoi(t.Value(key))
 			rf.SetInt(int64(i))
 		}
 	case string:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			rf.SetString(val)
+			rf.SetString(t.Value(key))
 		}
 	case []string:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			rf.Set(reflect.ValueOf(setSlice(val)))
+			rf.Set(reflect.ValueOf(setSlice(t.Value(key))))
 		}
 	case time.Time:
-		const ISO8601 = "2006-01-02T15:04:05.000Z"
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			tm, _ := time.Parse(ISO8601, val)
+			tm, _ := time.Parse(time.RFC3339Nano, t.Value(key))
 			rf.Set(reflect.ValueOf(tm))
 		}
 	case time.Duration:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			d, _ := time.ParseDuration(val + "s")
+			d, _ := time.ParseDuration(t.Value(key) + "s")
 			rf.Set(reflect.ValueOf(d))
 		}
 	case image.Point:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
 			p := image.Point{}
-			fmt.Sscanf(val, "%dx%d", &p.X, &p.Y)
+			fmt.Sscanf(t.Value(key), "%dx%d", &p.X, &p.Y)
 			rf.Set(reflect.ValueOf(p))
 		}
 	}

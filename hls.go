@@ -4,6 +4,7 @@ package hls
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"io"
 	"net/url"
@@ -98,13 +99,13 @@ type Media struct {
 type MediaHeader struct {
 	M3U           bool          `hls:"EXTM3U"`
 	Version       int           `hls:"EXT-X-VERSION"`
-	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
-	Type          string        `hls:"EXT-X-PLAYLIST-TYPE"`
+	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty"`
+	Type          string        `hls:"EXT-X-PLAYLIST-TYPE,omitempty"`
 	Target        time.Duration `hls:"EXT-X-TARGETDURATION"`
-	Start         Start         `hls:"EXT-X-START"`
-	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE"`
-	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE"`
-	End           bool          `hls:"EXT-X-ENDLIST"`
+	Start         Start         `hls:"EXT-X-START,omitempty"`
+	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE,omitempty"`
+	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE,omitempty"`
+	End           bool          `hls:"EXT-X-ENDLIST,omitempty"`
 }
 
 // Runtime measures the cumulative duration of the given
@@ -171,6 +172,19 @@ func (m *Media) Len() int {
 	return len(m.File)
 }
 
+func (m Media) Trunc(dur time.Duration) Media {
+	file := m.File
+	for i := len(file) - 1; i >= 0; i-- {
+		dur -= file[i].Duration(0)
+		if dur < 0 {
+			break
+		}
+		file = file[:i]
+	}
+	m.File = file
+	return m
+}
+
 func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 	if t, err = marshalTag0(m.MediaHeader); err != nil {
 		return t, err
@@ -186,19 +200,29 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 }
 
 type File struct {
-	Discontinuous bool      `hls:"EXT-X-DISCONTINUITY,omitempty"`
-	Time          time.Time `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
-	Range         Range     `hls:"EXT-X-BYTERANGE,omitempty"`
-	Map           Map       `hls:"EXT-X-MAP,omitempty"`
-	Key           Key       `hls:"EXT-X-KEY,omitempty"`
-	Inf           Inf       `hls:"EXTINF"`
+	Comment       string                 `hls:"#,omitempty"`
+	Time          time.Time              `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
+	TimeMap       TimeMap                `hls:"EXT-X-TIMESTAMP-MAP,omitempty"`
+	Range         Range                  `hls:"EXT-X-BYTERANGE,omitempty"`
+	Map           Map                    `hls:"EXT-X-MAP,omitempty"`
+	Key           Key                    `hls:"EXT-X-KEY,omitempty"`
+	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty"`
+	Extra         map[string]interface{} `hls:"*,omitempty"`
+	Inf           Inf                    `hls:"EXTINF"`
+}
+
+func (f *File) AddExtra(tag string, value interface{}) {
+	if f.Extra == nil {
+		f.Extra = map[string]interface{}{}
+	}
+	f.Extra[tag] = value
 }
 
 // Location returns the media URL relative to base. It conditionally
 // applies the base URL in cases where the media URL is a relative
 // path. Base may be nil. This function never returns nil, but may
 // return an empty URL. For error handling, process f.Inf.URL manually
-func (f File) Location(base *url.URL) *url.URL {
+func (f File) Location(base *url.URL) (u *url.URL) {
 	return location(base, f.Inf.URL)
 }
 
@@ -260,11 +284,27 @@ type Start struct {
 	Precise bool          `hls:"PRECISE"`
 }
 
+type TimeMap struct {
+	MPEG  int       `hls:"MPEGTS"`
+	Local time.Time `hls:"LOCAL"`
+}
+
 type Inf struct {
 	Duration    time.Duration `hls:"$1"`
 	Description string        `hls:"$2"`
 
 	URL string `hls:"$file"`
+}
+
+func (h Inf) settag(t *m3u.Tag) {
+	t.Arg = []m3u.Value{
+		{V: fmt.Sprint(h.Duration.Seconds())},
+		{V: fmt.Sprint(h.Description)},
+	}
+	if h.Description == "" {
+		t.Arg = t.Arg[:1]
+	}
+	t.Line = append(t.Line, h.URL)
 }
 
 type MediaInfo struct {

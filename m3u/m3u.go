@@ -1,6 +1,9 @@
 package m3u
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Tag struct {
 	Name string
@@ -47,20 +50,28 @@ func (t Tag) String() string {
 		return s
 	}
 	sep := ":"
+	if t.Name == "#"{
+		sep = ""
+	}
 	for _, v := range t.Arg {
-		s += sep + v.String()
+		val := v.String()
+		if val == ""{
+			continue
+		}
+		s += sep + val
 		sep = ","
 	}
 	for _, k := range t.Keys {
 		s += sep + fmt.Sprintf("%s=%s", k, t.Flag[k])
 		sep = ","
 	}
+	s = strings.TrimSuffix(s, ",")
 	sep = "\n"
 	for _, f := range t.Line {
 		s += sep + f
 	}
 	if len(s) > 0 && s[len(s)-1] != '\n' {
-		s += "\n"
+		//s += "\n"
 	}
 	return s
 }

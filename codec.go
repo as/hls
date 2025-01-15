@@ -2,6 +2,7 @@ package hls
 
 import (
 	"reflect"
+	"sort"
 
 	"github.com/as/hls/m3u"
 )
@@ -11,7 +12,8 @@ func marshalTag0(s interface{}) ([]m3u.Tag, error) {
 }
 
 func unmarshalTag0(s interface{}, t ...m3u.Tag) error {
-	return unmarshalTag(reflect.ValueOf(s), t...)
+	unmarshalTag(reflect.ValueOf(s), t...)
+	return nil
 }
 
 func marshalTag(s reflect.Value) ([]m3u.Tag, error) {
@@ -24,21 +26,56 @@ func marshalTag(s reflect.Value) ([]m3u.Tag, error) {
 		if label.omitempty && val.IsZero() {
 			continue
 		}
-		t := m3u.Tag{Name: label.name}
-		tags = append(tags, t)
+		if label.name == "*" {
+			extra, _ := val.Interface().(map[string]interface{})
+			extratags := []m3u.Tag{}
+			for k, v := range extra {
+				if t, ok := v.(m3u.Tag); ok{
+					extratags = append(extratags, t)
+					continue
+				}
+				t := m3u.Tag{Name: k}
+				settag(reflect.ValueOf(v), &t)
+				extratags = append(extratags, t)
+			}
+			if len(extratags) > 0 {
+				sort.Slice(extratags, func(i, j int) bool {
+					return extratags[i].Name < extratags[j].Name
+				})
+			}
+			tags = append(tags, extratags...)
+		} else {
+			t := m3u.Tag{Name: label.name}
+			settag(val, &t)
+			tags = append(tags, t)
+		}
 	}
 	return tags, nil
 }
 
-func unmarshalTag(s reflect.Value, t ...m3u.Tag) error {
+func unmarshalTag(s reflect.Value, t ...m3u.Tag) reflect.Value {
+	type extra interface {
+		AddExtra(tag string, value interface{})
+	}
 	sym := register(s, false)
 	for _, t := range t {
 		f, ok := sym.field[t.Name]
 		if ok && f.set != nil {
 			f.set(s.Elem().Field(f.index), t, "")
 		}
+		if !ok {
+			file, ok := s.Interface().(extra)
+			if ok {
+				new := extratag[t.Name]
+				if new != nil {
+					tag := new()
+					unmarshalAttr(tag, t)
+					file.AddExtra(t.Name, tag.Interface())
+				} 
+			}
+		}
 	}
-	return nil
+	return s
 }
 
 func unmarshalAttr(s reflect.Value, t m3u.Tag) error {
