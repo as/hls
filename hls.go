@@ -52,11 +52,11 @@ func Decode(r io.Reader) (t []m3u.Tag, master bool, err error) {
 // Master is a master playlist. It contains a list of streams (variants) and
 // media information associated by group id. By convention, the master playlist is immutable.
 type Master struct {
-	M3U         bool         `hls:"EXTM3U"`
-	Version     int          `hls:"EXT-X-VERSION"`
-	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS"`
-	Media       []MediaInfo  `hls:"EXT-X-MEDIA"`
-	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF"`
+	M3U         bool         `hls:"EXTM3U" json:",omitempty"`
+	Version     int          `hls:"EXT-X-VERSION" json:",omitempty"`
+	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS" json:",omitempty"`
+	Media       []MediaInfo  `hls:"EXT-X-MEDIA" json:",omitempty"`
+	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF" json:",omitempty"`
 }
 
 // Decode decodes the master playlist into m.
@@ -93,19 +93,19 @@ func (m *Master) Len() int {
 // is EXTINF and the content of any additional tags that apply to that EXTINF tag.
 type Media struct {
 	MediaHeader
-	File []File `hls:""`
+	File []File `hls:"" json:",omitempty"`
 }
 
 type MediaHeader struct {
-	M3U           bool          `hls:"EXTM3U"`
-	Version       int           `hls:"EXT-X-VERSION"`
-	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty"`
-	Type          string        `hls:"EXT-X-PLAYLIST-TYPE,omitempty"`
-	Target        time.Duration `hls:"EXT-X-TARGETDURATION"`
-	Start         Start         `hls:"EXT-X-START,omitempty"`
-	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE,omitempty"`
-	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE,omitempty"`
-	End           bool          `hls:"EXT-X-ENDLIST,omitempty"`
+	M3U           bool          `hls:"EXTM3U" json:",omitempty"`
+	Version       int           `hls:"EXT-X-VERSION" json:",omitempty"`
+	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty" json:",omitempty"`
+	Type          string        `hls:"EXT-X-PLAYLIST-TYPE,omitempty" json:",omitempty"`
+	Target        time.Duration `hls:"EXT-X-TARGETDURATION" json:",omitempty"`
+	Start         Start         `hls:"EXT-X-START,omitempty" json:",omitempty"`
+	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE,omitempty" json:",omitempty"`
+	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE,omitempty" json:",omitempty"`
+	End           bool          `hls:"EXT-X-ENDLIST,omitempty" json:",omitempty"`
 }
 
 // Runtime measures the cumulative duration of the given
@@ -200,15 +200,15 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 }
 
 type File struct {
-	Comment       string                 `hls:"#,omitempty"`
-	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty"`
-	Time          time.Time              `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
-	TimeMap       TimeMap                `hls:"EXT-X-TIMESTAMP-MAP,omitempty"`
-	Range         Range                  `hls:"EXT-X-BYTERANGE,omitempty"`
-	Map           Map                    `hls:"EXT-X-MAP,omitempty"`
-	Key           Key                    `hls:"EXT-X-KEY,omitempty"`
-	Extra         map[string]interface{} `hls:"*,omitempty"`
-	Inf           Inf                    `hls:"EXTINF"`
+	Comment       string                 `hls:"#,omitempty" json:",omitempty"`
+	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty" json:",omitempty"`
+	Time          time.Time              `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty" json:",omitempty"`
+	TimeMap       TimeMap                `hls:"EXT-X-TIMESTAMP-MAP,omitempty" json:",omitempty"`
+	Range         Range                  `hls:"EXT-X-BYTERANGE,omitempty" json:",omitempty"`
+	Map           Map                    `hls:"EXT-X-MAP,omitempty" json:",omitempty"`
+	Key           Key                    `hls:"EXT-X-KEY,omitempty" json:",omitempty"`
+	Extra         map[string]interface{} `hls:"*,omitempty" json:",omitempty"`
+	Inf           Inf                    `hls:"EXTINF" json:",omitempty"`
 }
 
 func (f *File) AddExtra(tag string, value interface{}) {
@@ -256,7 +256,7 @@ func (f File) sticky() File {
 }
 
 type Range struct {
-	V string `hls:""`
+	V string `hls:"" json:",omitempty"`
 }
 
 func (r Range) Value(n int) (at, size int, err error) {
@@ -275,24 +275,24 @@ type Key struct {
 }
 
 type Map struct {
-	URI string `hls:"URI"`
+	URI string `hls:"URI" json:",omitempty"`
 }
 
 type Start struct {
-	Offset  time.Duration `hls:"TIME-OFFSET"`
-	Precise bool          `hls:"PRECISE"`
+	Offset  time.Duration `hls:"TIME-OFFSET" json:",omitempty"`
+	Precise bool          `hls:"PRECISE" json:",omitempty"`
 }
 
 type TimeMap struct {
-	MPEG  int       `hls:"MPEGTS"`
-	Local time.Time `hls:"LOCAL"`
+	MPEG  int       `hls:"MPEGTS" json:",omitempty"`
+	Local time.Time `hls:"LOCAL" json:",omitempty"`
 }
 
 type Inf struct {
-	Duration    time.Duration `hls:"$1"`
-	Description string        `hls:"$2"`
+	Duration    time.Duration `hls:"$1" json:",omitempty"`
+	Description string        `hls:"$2" json:",omitempty"`
 
-	URL string `hls:"$file"`
+	URL string `hls:"$file" json:",omitempty"`
 }
 
 func (h Inf) settag(t *m3u.Tag) {
@@ -307,32 +307,32 @@ func (h Inf) settag(t *m3u.Tag) {
 }
 
 type MediaInfo struct {
-	Type       string `hls:"TYPE"`
-	Group      string `hls:"GROUP-ID"`
-	Name       string `hls:"NAME"`
-	Default    bool   `hls:"DEFAULT"`
-	Autoselect bool   `hls:"AUTOSELECT"`
-	Forced     bool   `hls:"FORCED"`
-	Lang       string `hls:"LANGUAGE"`
-	URI        string `hls:"URI"`
+	Type       string `hls:"TYPE" json:",omitempty"`
+	Group      string `hls:"GROUP-ID" json:",omitempty"`
+	Name       string `hls:"NAME" json:",omitempty"`
+	Default    bool   `hls:"DEFAULT" json:",omitempty"`
+	Autoselect bool   `hls:"AUTOSELECT" json:",omitempty"`
+	Forced     bool   `hls:"FORCED" json:",omitempty"`
+	Lang       string `hls:"LANGUAGE" json:",omitempty"`
+	URI        string `hls:"URI" json:",omitempty"`
 }
 
 type StreamInfo struct {
-	URL string `hls:"$file"`
+	URL string `hls:"$file" json:",omitempty"`
 
-	Index        int         `hls:"PROGRAM-ID"`
-	Framerate    float64     `hls:"FRAME-RATE"`
-	Bandwidth    int         `hls:"BANDWIDTH"`
-	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH"`
-	Codecs       []string    `hls:"CODECS"`
-	Resolution   image.Point `hls:"RESOLUTION"`
-	VideoRange   string      `hls:"VIDEO-RANGE"`
-	HDCP         string      `hls:"HDCP-LEVEL"`
+	Index        int         `hls:"PROGRAM-ID" json:",omitempty"`
+	Framerate    float64     `hls:"FRAME-RATE" json:",omitempty"`
+	Bandwidth    int         `hls:"BANDWIDTH" json:",omitempty"`
+	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH" json:",omitempty"`
+	Codecs       []string    `hls:"CODECS" json:",omitempty"`
+	Resolution   image.Point `hls:"RESOLUTION" json:",omitempty"`
+	VideoRange   string      `hls:"VIDEO-RANGE" json:",omitempty"`
+	HDCP         string      `hls:"HDCP-LEVEL" json:",omitempty"`
 
-	Audio    string `hls:"AUDIO"`
-	Video    string `hls:"VIDEO"`
-	Subtitle string `hls:"SUBTITLES"`
-	Caption  string `hls:"CLOSED-CAPTIONS"`
+	Audio    string `hls:"AUDIO" json:",omitempty"`
+	Video    string `hls:"VIDEO" json:",omitempty"`
+	Subtitle string `hls:"SUBTITLES" json:",omitempty"`
+	Caption  string `hls:"CLOSED-CAPTIONS" json:",omitempty"`
 }
 
 // Location returns the stream URL relative to base. It conditionally
