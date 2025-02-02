@@ -201,12 +201,12 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 
 type File struct {
 	Comment       string                 `hls:"#,omitempty"`
+	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty"`
 	Time          time.Time              `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty"`
 	TimeMap       TimeMap                `hls:"EXT-X-TIMESTAMP-MAP,omitempty"`
 	Range         Range                  `hls:"EXT-X-BYTERANGE,omitempty"`
 	Map           Map                    `hls:"EXT-X-MAP,omitempty"`
 	Key           Key                    `hls:"EXT-X-KEY,omitempty"`
-	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty"`
 	Extra         map[string]interface{} `hls:"*,omitempty"`
 	Inf           Inf                    `hls:"EXTINF"`
 }
@@ -248,7 +248,6 @@ func (f File) Duration(target time.Duration) time.Duration {
 
 // sticky returns a copy of f with only sticky field set
 // a sticky field is a field that propagates across Inf blocks
-//
 func (f File) sticky() File {
 	return File{
 		Map: f.Map,

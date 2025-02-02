@@ -109,8 +109,8 @@ func parselabel(sf reflect.StructField) *label {
 	return &l
 }
 
-func settag(rf reflect.Value, t *m3u.Tag)  {
-	type tagsetter interface{
+func settag(rf reflect.Value, t *m3u.Tag) {
+	type tagsetter interface {
 		settag(t *m3u.Tag)
 	}
 	w := m3u.Value{}
@@ -133,24 +133,26 @@ func settag(rf reflect.Value, t *m3u.Tag)  {
 		switch val := rf.Type(); val.Kind() {
 		case reflect.Struct:
 			sym := register(rf, false)
-			if t.Flag == nil{ t.Flag = map[string]m3u.Value{} }
+			if t.Flag == nil {
+				t.Flag = map[string]m3u.Value{}
+			}
 			for _, label := range sym.names {
 				attr := tostring(rf.Field(sym.field[label.name].index))
-				if attr == ""{
+				if attr == "" {
 					continue
 				}
 				t.Keys = append(t.Keys, label.name)
 				t.Flag[label.name] = m3u.Value{V: attr}
 			}
 		default:
-		return
+			return
 		}
 	}
 	t.Arg = append(t.Arg, w)
 }
 
-func tostring(rf reflect.Value) string{
-	if rf.IsZero(){
+func tostring(rf reflect.Value) string {
+	if rf.IsZero() {
 		return ""
 	}
 	switch t := rf.Interface().(type) {
