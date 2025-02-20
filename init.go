@@ -12,7 +12,7 @@ func js(v any) string {
 	return string(data)
 }
 
-func writeplaylist(m Media, w io.Writer) bool {
+func writeplaylist(m Media, w io.Writer) error {
 	init := ""
 	m.File = append([]File{}, m.File...)
 	for i := 0; i < len(m.File); i++ {
@@ -27,7 +27,7 @@ func writeplaylist(m Media, w io.Writer) bool {
 	for _, t := range tags {
 		fmt.Fprintln(w, t)
 	}
-	return true
+	return nil
 }
 
 func init() {

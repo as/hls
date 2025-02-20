@@ -185,6 +185,10 @@ func (m Media) Trunc(dur time.Duration) Media {
 	return m
 }
 
+func (m Media) Encode(w io.Writer) (err error) {
+	return writeplaylist(m, w)
+}
+
 func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 	if t, err = marshalTag0(m.MediaHeader); err != nil {
 		return t, err
