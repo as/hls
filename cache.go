@@ -115,6 +115,8 @@ func settag(rf reflect.Value, t *m3u.Tag) {
 	}
 	w := m3u.Value{}
 	switch val := rf.Interface().(type) {
+	case m3u.Tag:
+		*t = val
 	case tagsetter:
 		val.settag(t)
 	case float32, float64:
@@ -171,7 +173,24 @@ func tostring(rf reflect.Value) string {
 }
 
 func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
+	type tagdecoder interface {
+		decodetag(t m3u.Tag)
+	}
+	switch rf.Addr().Interface().(type) {
+	case tagdecoder:
+		return func(rf reflect.Value, t m3u.Tag, key string) {
+			td, _ := rf.Addr().Interface().(tagdecoder)
+			if td != nil {
+				td.decodetag(t)
+			}
+		}
+	}
+
 	switch rf.Interface().(type) {
+	case m3u.Tag:
+		return func(rf reflect.Value, t m3u.Tag, key string) {
+			rf.Set(reflect.ValueOf(t))
+		}
 	case bool:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
 			val := t.Value(key)

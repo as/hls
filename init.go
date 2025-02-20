@@ -1,8 +1,34 @@
 package hls
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"strings"
 )
+
+func js(v any) string {
+	data, _ := json.Marshal(v)
+	return string(data)
+}
+
+func writeplaylist(m Media, w io.Writer) bool {
+	init := ""
+	m.File = append([]File{}, m.File...)
+	for i := 0; i < len(m.File); i++ {
+		f := &m.File[i]
+		if init == f.Map.URI && !f.Discontinuous {
+			f.Map.URI = ""
+		} else {
+			init = f.Map.URI
+		}
+	}
+	tags, _ := m.EncodeTag()
+	for _, t := range tags {
+		fmt.Fprintln(w, t)
+	}
+	return true
+}
 
 func init() {
 	m0 := Master{}
@@ -11,6 +37,8 @@ func init() {
 	m1.Decode(strings.NewReader(sampleMedia))
 	m2 := Media{}
 	m2.Decode(strings.NewReader(sampleFrag))
+	m3 := Media{}
+	m3.Decode(strings.NewReader(sampleCue))
 }
 
 var sampleMedia = `
@@ -75,6 +103,42 @@ var sampleFrag = `
 6.m4s
 #EXTINF:6.000000,
 7.m4s
+#EXTINF:4.208333,
+8.m4s
+#EXT-X-ENDLIST
+`
+
+var sampleCue = `
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-PLAYLIST-TYPE:EVENT
+#EXT-X-MAP:URI="init.mp4"
+#EXTINF:6.000000,
+0.m4s
+#EXTINF:6.000000,
+1.m4s
+#EXTINF:6.000000,
+2.m4s
+#EXT-OATCLS-SCTE35:/DAlAAAAAyiYAP/wFAUAAIMRf+/+0bb+Av4AUmNiAAEBAQAAM5uUog==
+#EXT-X-CUE-OUT:DURATION=120,BREAKID=blahblahblah
+#EXTINF:6.000000,
+3.m4s
+#EXT-X-CUE-OUT:12
+#EXTINF:6.000000,
+4.m4s
+#EXT-X-CUE-CONT:18
+#EXTINF:6.000000,
+5.m4s
+#EXT-X-ASSET:CONTENT_ID="2447371",CONTENT_FREQID="4312662727378189181",CONTENT_EXTID="ABC12345-oo0021-h4c3d",CONTENT_LEN=3600,CONTENT_BRAND="Publisher%20ABC",CONTENT_GENRE="Entertainment",CONTENT_RATING="TV14",CONTENT_LANGUAGE="en",CONTENT_KEYWORDS="key1,word2,%20cool",CONTENT_TITLE="Best%20Fails%20of%20the%20Month%20|EP%20203",CONTENT_FORMAT="Show",CONTENT_SERIES="Best%20Fails%20of%20the%20Month",CONTENT_SEASON="Season%202",CONTENT_EPISODE=3,CONTENT_CONTEXT=1,CONTENT_PRODQ=1
+#EXT-X-PLACEMENT-OPPORTUNITY
+#EXT-X-CUE-IN
+#EXTINF:6.000000,
+6.m4s
+#EXTINF:6.000000,
+7.m4s
+#EXT-X-CUE-IN
 #EXTINF:4.208333,
 8.m4s
 #EXT-X-ENDLIST

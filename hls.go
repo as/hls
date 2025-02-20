@@ -200,15 +200,65 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 }
 
 type File struct {
-	Comment       string                 `hls:"#,omitempty" json:",omitempty"`
-	Discontinuous bool                   `hls:"EXT-X-DISCONTINUITY,omitempty" json:",omitempty"`
-	Time          time.Time              `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty" json:",omitempty"`
-	TimeMap       TimeMap                `hls:"EXT-X-TIMESTAMP-MAP,omitempty" json:",omitempty"`
-	Range         Range                  `hls:"EXT-X-BYTERANGE,omitempty" json:",omitempty"`
-	Map           Map                    `hls:"EXT-X-MAP,omitempty" json:",omitempty"`
-	Key           Key                    `hls:"EXT-X-KEY,omitempty" json:",omitempty"`
-	Extra         map[string]interface{} `hls:"*,omitempty" json:",omitempty"`
-	Inf           Inf                    `hls:"EXTINF" json:",omitempty"`
+	Comment       string    `hls:"#,omitempty" json:",omitempty"`
+	Discontinuous bool      `hls:"EXT-X-DISCONTINUITY,omitempty" json:",omitempty"`
+	Time          time.Time `hls:"EXT-X-PROGRAM-DATE-TIME,omitempty" json:",omitempty"`
+	TimeMap       TimeMap   `hls:"EXT-X-TIMESTAMP-MAP,omitempty" json:",omitempty"`
+	Range         Range     `hls:"EXT-X-BYTERANGE,omitempty" json:",omitempty"`
+	Map           Map       `hls:"EXT-X-MAP,omitempty" json:",omitempty"`
+	Key           Key       `hls:"EXT-X-KEY,omitempty" json:",omitempty"`
+
+	// Asset and other AD-related insertion fields. Most of these can be used to signal
+	// AD-insertion and many are redundant.
+	Asset              m3u.Tag   `hls:"EXT-X-ASSET,omitempty" json:",omitempty"`
+	PlacementOpp       bool      `hls:"EXT-X-PLACEMENT-OPPORTUNITY,omitempty" json:",omitempty"`
+	CueOut             Cue       `hls:"EXT-X-CUE-OUT,omitempty" json:",omitempty"`
+	CueCont            Cue       `hls:"EXT-X-CUE-OUT-CONT,omitempty" json:",omitempty"`
+	CueIn              Cue       `hls:"EXT-X-CUE-IN,omitempty" json:",omitempty"`
+	CueAdobe           CueAdobe  `hls:"EXT-X-CUE,omitempty" json:",omitempty"`
+	SCTE35             SCTE35    `hls:"EXT-X-SCTE35,omitempty" json:",omitempty"`
+	DateRange          DateRange `hls:"EXT-X-DATERANGE,omitempty" json:",omitempty"`
+	SCTE35Splice       string    `hls:"EXT-X-SPLICEPOINT-SCTE35,omitempty" json:",omitempty"`
+	SCTE35OatclsSplice string    `hls:"EXT-OATCLS-SCTE35,omitempty" json:",omitempty"`
+
+	Extra map[string]interface{} `hls:"*,omitempty" json:",omitempty"`
+	Inf   Inf                    `hls:"EXTINF" json:",omitempty"`
+}
+
+// IsAD returns true if the segment looks like an AD-break. This currently only handles
+// the three standard EXT-X-CUE-OUT, EXT-X-CUE-OUT-CONT, and EXT-X-CUE-IN
+// tags. Examine the SCTE35 fields manually to handle other formats
+func (f *File) IsAD() bool {
+	return f.CueOut.IsAD() || f.CueCont.IsAD() || f.CueOut.IsAD()
+}
+
+// Cue returns the value of the EXT-X-CUE-OUT, EXT-X-CUE-OUT-CONT,
+// and EXT-X-CUE-IN tags. The Cue.Kind field is set to "in", "out", "cont" or
+// the empty string if there is no queue.
+//
+// Example:
+//
+// if f.IsAD() { fmt.Println("cue is", f.Cue()) }
+func (f *File) Cue() Cue {
+	c := f.CueOut
+	if c.IsAD() {
+		c.Set = true
+		c.Kind = "out"
+		return c
+	}
+	c = f.CueCont
+	if c.IsAD() {
+		c.Set = true
+		c.Kind = "cont"
+		return c
+	}
+	c = f.CueIn
+	if c.IsAD() {
+		c.Set = true
+		c.Kind = "in"
+		return c
+	}
+	return c
 }
 
 func (f *File) AddExtra(tag string, value interface{}) {
@@ -272,6 +322,9 @@ func (r Range) Value(n int) (at, size int, err error) {
 }
 
 type Key struct {
+	Method string `hls:"METHOD" json:",omitempty"`
+	URI    string `hls:"URI" json:",omitempty"`
+	IV     string `hls:"IV" json:",omitempty"`
 }
 
 type Map struct {

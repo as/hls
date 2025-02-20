@@ -1,3 +1,3 @@
 module github.com/as/hls
 
-go 1.14
+go 1.18

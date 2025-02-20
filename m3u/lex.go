@@ -55,7 +55,7 @@ func (s *lex) lexAttr() bool {
 	delims := "=,\n"
 	for s.until(delims) {
 		f := Value{V: s.token()}
-		if !s.lexAttrValue(f.V) {
+		if !s.lexAttrValue(&f) {
 			s.tag.Arg = append(s.tag.Arg, f)
 			// after we encounter the first keyless field, stop looking
 			// for equal signs, since they might be part of the url
@@ -70,7 +70,7 @@ func (s *lex) lexAttr() bool {
 	return s.ok()
 }
 
-func (s *lex) lexAttrValue(key string) bool {
+func (s *lex) lexAttrValue(key *Value) bool {
 	if !s.ignore("=") {
 		return false
 	}
@@ -84,11 +84,18 @@ func (s *lex) lexAttrValue(key string) bool {
 		s.until(",\n")
 		f.V = s.token()
 	}
-	s.tag.Keys = append(s.tag.Keys, key)
+	if strings.Trim(f.V, "\n\r\t=, ") == "" {
+		// this is an abuse of the m3u standard but some tags
+		// have no key value pairs with trailing base64 padding
+		// so bail out
+		key.V += "=" + f.V
+		return false
+	}
+	s.tag.Keys = append(s.tag.Keys, key.V)
 	if s.tag.Flag == nil {
 		s.tag.Flag = map[string]Value{}
 	}
-	s.tag.Flag[key] = f
+	s.tag.Flag[key.V] = f
 	return true
 }
 
