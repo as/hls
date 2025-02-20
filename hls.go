@@ -240,11 +240,27 @@ func (f *File) IsAD() bool {
 // and EXT-X-CUE-IN tags. The Cue.Kind field is set to "in", "out", "cont" or
 // the empty string if there is no queue.
 //
+// The SCTE35 field is set to the OatcltSplice or SCTE35Splice field in the File
+// if not set in the Cue natively. This can be in binary, hex, or base64 format.
+//
+// Use: github.com/as/scte35.Parse(...) to decode the bitstream
+//
 // Example:
 //
 // if f.IsAD() { fmt.Println("cue is", f.Cue()) }
-func (f *File) Cue() Cue {
-	c := f.CueOut
+func (f *File) Cue() (c Cue) {
+	defer func() {
+		if !c.Set || c.SCTE35 != "" {
+			return
+		}
+		for _, splice := range []string{c.SCTE35, f.SCTE35OatclsSplice, f.SCTE35Splice} {
+			if splice != "" {
+				c.SCTE35 = splice
+				return
+			}
+		}
+	}()
+	c = f.CueOut
 	if c.IsAD() {
 		c.Set = true
 		c.Kind = "out"

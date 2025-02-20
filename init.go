@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -39,6 +40,7 @@ func init() {
 	m2.Decode(strings.NewReader(sampleFrag))
 	m3 := Media{}
 	m3.Decode(strings.NewReader(sampleCue))
+
 }
 
 var sampleMedia = `
@@ -125,7 +127,7 @@ var sampleCue = `
 #EXT-X-CUE-OUT:DURATION=120,BREAKID=blahblahblah
 #EXTINF:6.000000,
 3.m4s
-#EXT-X-CUE-OUT:12
+#EXT-X-CUE-OUT-CONT:DURATION=120,ELAPSEDTIME=6,SCTE35=/DAlAAAAAyiYAP/wFAUAAIMRf+/+0bb+Av4AUmNiAAEBAQAAM5uUog==
 #EXTINF:6.000000,
 4.m4s
 #EXT-X-CUE-CONT:18
