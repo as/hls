@@ -50,12 +50,12 @@ func (t Tag) String() string {
 		return s
 	}
 	sep := ":"
-	if t.Name == "#"{
+	if t.Name == "#" {
 		sep = ""
 	}
 	for _, v := range t.Arg {
 		val := v.String()
-		if val == ""{
+		if val == "" {
 			continue
 		}
 		s += sep + val

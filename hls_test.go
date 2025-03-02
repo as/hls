@@ -88,13 +88,16 @@ func TestDecodeValidation(t *testing.T) {
 	}
 }
 func BenchmarkDecodeMaster(b *testing.B) {
+	b.SetBytes(int64(len(sampleMaster)))
 	benchDecode(b, &Master{}, strings.NewReader(sampleMaster))
 }
 func BenchmarkDecodeMedia(b *testing.B) {
+	b.SetBytes(int64(len(sampleMedia)))
 	benchDecode(b, &Media{}, strings.NewReader(sampleMedia))
 }
 
 func benchDecode(b *testing.B, dst interface{ Decode(io.Reader) error }, src io.ReadSeeker) {
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		src.Seek(0, 0)
 		dst.Decode(src)

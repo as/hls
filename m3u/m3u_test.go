@@ -1,6 +1,7 @@
 package m3u
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,7 +12,8 @@ func TestLexZeroLengthArg(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Tag{Name: "EXTINF", Arg: []Value{{V: "10.0"}, {V: ""}}, Line: []string{"file", "\n"}}
+	//	want := Tag{Name: "EXTINF", Arg: []Value{{V: "10.0"}, {V: ""}}, Line: []string{"file", "\n"}}
+	want := Tag{Name: "EXTINF", Arg: []Value{{V: "10.0"}, {V: ""}}, Line: []string{"file"}}
 	if !reflect.DeepEqual(want, tag[0]) {
 		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", tag[0], want)
 	}
@@ -92,6 +94,19 @@ https://02.m3u8
 func BenchmarkParseEmpty(b *testing.B) { bench(b, "") }
 func BenchmarkParseOne(b *testing.B)   { bench(b, "#EXTM3U") }
 func BenchmarkParseFull(b *testing.B)  { bench(b, full) }
+func BenchmarkParseJumbo(b *testing.B) { bench(b, jumbo) }
+
+var jumbo = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-TARGETDURATION:10
+`
+
+func init() {
+	for i := 0; i < 40000; i++ {
+		jumbo += fmt.Sprintf("#EXTINF:10.000,\nmovie%d.ts\n", i)
+	}
+}
 
 func BenchmarkParse(b *testing.B) {
 	bench(b, raw)
@@ -102,10 +117,13 @@ func bench(b *testing.B, input string) {
 	b.SetBytes(int64(len(input)))
 	r := strings.NewReader(input)
 	b.ResetTimer()
+	lex := New(r)
 	for n := 0; n < b.N; n++ {
 		r.Seek(0, 0)
-		Parse(r)
+		lex.Reset(r)
+		lex.Parse()
 	}
+	lex = lex
 }
 
 var raw = `

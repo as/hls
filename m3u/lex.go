@@ -7,7 +7,30 @@ import (
 )
 
 func Parse(r io.Reader) (t []Tag, err error) {
-	l := newlex(r)
+	return newlex(r).Parse()
+}
+
+type lex struct {
+	br  *bufio.Reader
+	tag Tag
+
+	err error
+	cur []byte
+	b   byte
+}
+
+func newlex(r io.Reader) *lex {
+	return &lex{
+		br: bufio.NewReaderSize(r, 1024),
+		// Reader: bufio.NewReader(io.MultiReader(r, strings.NewReader("\n"))),
+	}
+}
+
+func New(r io.Reader) *lex {
+	return newlex(r)
+}
+
+func (l *lex) Parse() (t []Tag, err error) {
 	for l.lexTag() {
 		t = append(t, l.tag)
 	}
@@ -17,29 +40,24 @@ func Parse(r io.Reader) (t []Tag, err error) {
 	return append(t, l.tag), l.err
 }
 
-type lex struct {
-	*bufio.Reader
-	tag Tag
-
-	cur    string
-	err    error
-	b      byte
-	cankey bool
-}
-
-func newlex(r io.Reader) *lex {
-	return &lex{
-		Reader: bufio.NewReader(io.MultiReader(r, strings.NewReader("\n"))),
+func (s *lex) Reset(r io.Reader) {
+	if s.br == nil {
+		s.br = bufio.NewReaderSize(r, 1024)
+	} else {
+		s.br.Reset(r)
 	}
+	s.err = nil
+	s.cur = s.cur[:0]
+	s.tag = Tag{}
 }
 
 func (s *lex) lexTag() bool {
 	s.whitespace()
-	if !s.ignore("#") {
+	if !s.ignore('#') {
 		return false
 	}
 	s.tag = Tag{}
-	s.until(":\n")
+	s.untilAny(":\n")
 	s.tag.Name = s.token()
 	s.lexAttr()
 	for s.lexArg() {
@@ -48,12 +66,12 @@ func (s *lex) lexTag() bool {
 }
 
 func (s *lex) lexAttr() bool {
-	if !s.ignore(":") {
+	if !s.ignore(':') {
 		return false
 	}
 
 	delims := "=,\n"
-	for s.until(delims) {
+	for s.untilAny(delims) {
 		f := Value{V: s.token()}
 		if !s.lexAttrValue(&f) {
 			s.tag.Arg = append(s.tag.Arg, f)
@@ -62,7 +80,7 @@ func (s *lex) lexAttr() bool {
 			// in EXTINF tags
 			delims = ",\n"
 		}
-		if s.skip() != "," {
+		if s.skip() != ',' {
 			break
 		}
 		//s.whitespace()
@@ -71,17 +89,17 @@ func (s *lex) lexAttr() bool {
 }
 
 func (s *lex) lexAttrValue(key *Value) bool {
-	if !s.ignore("=") {
+	if !s.ignore('=') {
 		return false
 	}
 	f := Value{}
-	if s.ignore(`"`) {
-		s.until(`"`)
+	if s.ignore('"') {
+		s.untilAny(`"`)
 		f.V = s.token()
 		f.Quote = true
-		s.ignore(`"`)
+		s.ignore('"')
 	} else {
-		s.until(",\n")
+		s.untilAny(",\n")
 		f.V = s.token()
 	}
 	if strings.Trim(f.V, "\n\r\t=, ") == "" {
@@ -101,11 +119,11 @@ func (s *lex) lexAttrValue(key *Value) bool {
 
 func (s *lex) lexArg() bool {
 	s.whitespace()
-	if s.next() == "#" {
+	if s.next() == '#' {
 		s.backup()
 		return false
 	}
-	s.until("\n")
+	s.untilAny("\n")
 	s.tag.Line = append(s.tag.Line, s.token())
 	s.skip()
 	return s.ok()
@@ -114,12 +132,12 @@ func (s *lex) lexArg() bool {
 func (s *lex) ok() bool {
 	return s.err == nil
 }
-func (s *lex) next() (r string) {
-	if s.b, s.err = s.Reader.ReadByte(); s.ok() {
-		r = string(s.b)
-		s.cur += r
+
+func (s *lex) next() (r byte) {
+	if s.b, s.err = s.br.ReadByte(); s.ok() {
+		s.cur = append(s.cur, s.b)
 	}
-	return r
+	return s.b
 }
 
 func (s *lex) whitespace() bool {
@@ -138,40 +156,59 @@ func (s *lex) acceptRun(valid string) bool {
 }
 
 func (s *lex) accept(valid string) bool {
-	if strings.ContainsAny(s.next(), valid) {
-		return true
+	b := s.next()
+	for _, v := range []byte(valid) {
+		if v == b {
+			return true
+		}
 	}
 	s.backup()
 	return false
 }
-func (s *lex) until(delims string) bool {
-	for lim := 4096; lim != 0; lim-- {
-		if strings.ContainsAny(s.next(), delims) {
-			s.backup()
-			return true
+
+func (s *lex) untilAny(delims string) bool {
+	for lim := 2048; s.ok() && lim != 0; lim-- {
+		b := s.next()
+		for _, d := range []byte(delims) {
+			if b == d {
+				s.backup()
+				return true
+			}
 		}
 	}
 	return false
 }
+
 func (s *lex) backup() bool {
-	s.Reader.UnreadByte()
+	s.br.UnreadByte()
 	if n := len(s.cur); n > 0 {
 		s.cur = s.cur[:n-1]
 	}
 	return s.ok()
 }
-func (s *lex) skip() (r string) {
-	defer s.advance()
-	return s.next()
+
+func (s *lex) skip() (r byte) {
+	r = s.next()
+	s.advance()
+	return r
 }
+
 func (s *lex) token() string {
-	defer s.advance()
-	return s.cur
+	t := string(s.cur)
+	s.cur = s.cur[:0]
+	return t
 }
+
 func (s *lex) advance() bool {
-	s.cur = ""
+	s.cur = s.cur[:0]
 	return true
 }
-func (s *lex) ignore(charset string) bool {
-	return s.accept(charset) && s.advance()
+
+func (s *lex) ignore(c byte) bool {
+	if s.next() == c {
+		s.cur = s.cur[:0]
+		return true
+	}
+	s.backup()
+	return false
 }
