@@ -72,6 +72,11 @@ func TestDecodeMedia(t *testing.T) {
 	if m.Version != 3 {
 		t.Fatalf("version: %v", m.Version)
 	}
+	for i := range m.File {
+		if m.File[i].AD != nil {
+			t.Fatal("ad break allocated extraneously")
+		}
+	}
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", m, want)
 	}

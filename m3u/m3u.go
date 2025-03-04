@@ -79,15 +79,11 @@ func (t Tag) String() string {
 type Value struct {
 	V     string
 	Quote bool
-	Wrap  bool
 }
 
 func (v Value) String() string {
 	if v.Quote {
 		return fmt.Sprintf("%q", v.V)
-	}
-	if v.Wrap {
-		return "\n" + v.V
 	}
 	return v.V
 }

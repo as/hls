@@ -35,6 +35,8 @@ type sfield struct {
 	// TODO(as): implement: should product a tag from a
 	// reflect.Value, for marshalling
 	tag func(reflect.Value, *m3u.Tag)
+
+	kid *sfield
 }
 
 // sym is a logical union that represents a cached struct or
@@ -63,6 +65,8 @@ func register(v reflect.Value, attr bool) sym {
 	s, ok := symtab[t]
 	if ok {
 		return s
+	} else {
+		fmt.Printf("MISS symbol %s NOT found in cache attr=%v\n", t, attr)
 	}
 	s = sym{
 		field: map[string]sfield{},
@@ -79,8 +83,21 @@ func register(v reflect.Value, attr bool) sym {
 			if label == nil {
 				continue
 			}
-			s.field[label.name] = sfield{index: i, set: compile(v.Field(i)), attr: attr}
-			s.names = append(s.names, *label)
+			//		fmt.Printf("label.name=%v\n", label.name)
+			if label.embed {
+				vv := v.Field(i)
+				z := reflect.New(vv.Type().Elem())
+				vv.Set(z)
+				kid := register(vv, false)
+				for _, label := range kid.names {
+					s.names = append(s.names, label)
+					p := kid.field[label.name]
+					s.field[label.name] = sfield{index: i, kid: &p, attr: attr}
+				}
+			} else {
+				s.field[label.name] = sfield{index: i, set: compile(v.Field(i)), attr: attr}
+				s.names = append(s.names, *label)
+			}
 		}
 	default:
 		return sym{}
@@ -92,6 +109,8 @@ func register(v reflect.Value, attr bool) sym {
 type label struct {
 	name      string
 	omitempty bool
+	embed     bool
+	quote     bool
 }
 
 func parselabel(sf reflect.StructField) *label {
@@ -102,33 +121,38 @@ func parselabel(sf reflect.StructField) *label {
 	a := strings.Split(v, ",")
 	l := label{name: a[0]}
 	for _, extra := range a[1:] {
-		if extra == "omitempty" {
+		switch extra {
+		case "omitempty":
 			l.omitempty = true
+		case "embed":
+			l.embed = true
+		case "quote":
+			l.quote = true
 		}
 	}
 	return &l
 }
 
-func settag(rf reflect.Value, t *m3u.Tag) {
+func settag(rf reflect.Value, t *m3u.Tag, quote bool) {
 	type tagsetter interface {
 		settag(t *m3u.Tag)
 	}
-	w := m3u.Value{}
+	w := m3u.Value{Quote: quote}
 	switch val := rf.Interface().(type) {
 	case m3u.Tag:
 		*t = val
 	case tagsetter:
 		val.settag(t)
+	case time.Duration:
+		w.V = fmt.Sprint(val.Seconds())
+	case time.Time:
+		w.V = fmt.Sprint(val.Format(time.RFC3339Nano))
 	case float32, float64:
-		w.V = fmt.Sprint(val)
-	case uint8, uint16, uint32, uint64, uint, int8, int16, int32, int64, int:
 		w.V = fmt.Sprint(val)
 	case string:
 		w.V = fmt.Sprint(val)
-	case time.Time:
-		w.V = fmt.Sprint(val.Format(time.RFC3339Nano))
-	case time.Duration:
-		w.V = fmt.Sprint(val.Seconds())
+	case uint8, uint16, uint32, uint64, uint, int8, int16, int32, int64, int:
+		w.V = fmt.Sprint(val)
 	case image.Point:
 		w.V = fmt.Sprintf("%dx%d", val.X, val.Y)
 	case interface{}:
@@ -144,7 +168,7 @@ func settag(rf reflect.Value, t *m3u.Tag) {
 					continue
 				}
 				t.Keys = append(t.Keys, label.name)
-				t.Flag[label.name] = m3u.Value{V: attr}
+				t.Flag[label.name] = m3u.Value{V: attr, Quote: label.quote}
 			}
 		default:
 			return
@@ -176,12 +200,14 @@ func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 	type tagdecoder interface {
 		decodetag(t m3u.Tag)
 	}
-	switch rf.Addr().Interface().(type) {
-	case tagdecoder:
-		return func(rf reflect.Value, t m3u.Tag, key string) {
-			td, _ := rf.Addr().Interface().(tagdecoder)
-			if td != nil {
-				td.decodetag(t)
+	if rf.CanAddr() {
+		switch rf.Addr().Interface().(type) {
+		case tagdecoder:
+			return func(rf reflect.Value, t m3u.Tag, key string) {
+				td, _ := rf.Addr().Interface().(tagdecoder)
+				if td != nil {
+					td.decodetag(t)
+				}
 			}
 		}
 	}
