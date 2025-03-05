@@ -1,11 +1,9 @@
 package hls
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -41,9 +39,6 @@ func init() {
 	m2.Decode(strings.NewReader(sampleFrag))
 	m3 := Media{}
 	m3.Decode(strings.NewReader(sampleCue))
-	b := new(bytes.Buffer)
-	writeplaylist(m3, b)
-	io.Copy(os.Stderr, b)
 }
 
 var sampleMedia = `

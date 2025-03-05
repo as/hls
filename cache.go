@@ -65,8 +65,6 @@ func register(v reflect.Value, attr bool) sym {
 	s, ok := symtab[t]
 	if ok {
 		return s
-	} else {
-		fmt.Printf("MISS symbol %s NOT found in cache attr=%v\n", t, attr)
 	}
 	s = sym{
 		field: map[string]sfield{},
@@ -95,7 +93,7 @@ func register(v reflect.Value, attr bool) sym {
 					s.field[label.name] = sfield{index: i, kid: &p, attr: attr}
 				}
 			} else {
-				s.field[label.name] = sfield{index: i, set: compile(v.Field(i)), attr: attr}
+				s.field[label.name] = sfield{index: i, set: compileDec(v.Field(i)), attr: attr}
 				s.names = append(s.names, *label)
 			}
 		}
@@ -196,7 +194,9 @@ func tostring(rf reflect.Value) string {
 	return ""
 }
 
-func compile(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
+// compileDec returns a func that can decode the m3u.Tag into the
+// type represented by the input argument rf
+func compileDec(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 	type tagdecoder interface {
 		decodetag(t m3u.Tag)
 	}
