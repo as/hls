@@ -3,6 +3,7 @@ package hls
 import (
 	"image"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -45,6 +46,24 @@ func TestDecodeMaster(t *testing.T) {
 	}
 }
 
+func TestEncodeMaster(t *testing.T) {
+	m := Master{}
+	m.Decode(strings.NewReader(sampleMaster)) // init.go:/sampleMaster/
+	err := m.Encode(os.Stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEncodeMasterBlaster(t *testing.T) {
+	m := Master{}
+	m.Decode(strings.NewReader(sampleMasterBlaster)) // init.go:/sampleMaster/
+	err := m.Encode(os.Stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDecodeMedia(t *testing.T) {
 	tm, _ := time.Parse("2006-01-02T15:04:05.000Z", "2021-01-11T07:59:41.005Z")
 	want := Media{
@@ -81,6 +100,7 @@ func TestDecodeMedia(t *testing.T) {
 		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", m, want)
 	}
 }
+
 func TestDecodeValidation(t *testing.T) {
 	m := Media{}
 	h, w := m.Decode(strings.NewReader("")), ErrHeader
@@ -92,10 +112,12 @@ func TestDecodeValidation(t *testing.T) {
 		t.Fatalf("mismatch:\n\t\thave: %+v\n\t\twant: %+v", h, w)
 	}
 }
+
 func BenchmarkDecodeMaster(b *testing.B) {
 	b.SetBytes(int64(len(sampleMaster)))
 	benchDecode(b, &Master{}, strings.NewReader(sampleMaster))
 }
+
 func BenchmarkDecodeMedia(b *testing.B) {
 	b.SetBytes(int64(len(sampleMedia)))
 	benchDecode(b, &Media{}, strings.NewReader(sampleMedia))

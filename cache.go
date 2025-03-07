@@ -109,6 +109,7 @@ type label struct {
 	omitempty bool
 	embed     bool
 	quote     bool
+	aggr      bool
 }
 
 func parselabel(sf reflect.StructField) *label {
@@ -123,6 +124,8 @@ func parselabel(sf reflect.StructField) *label {
 		switch extra {
 		case "omitempty":
 			l.omitempty = true
+		case "aggr":
+			l.aggr = true
 		case "embed":
 			l.embed = true
 		case "quote":
@@ -138,6 +141,8 @@ func parselabel(sf reflect.StructField) *label {
 	}
 	if crc == 0 {
 		switch sf.Type.Kind() {
+		case reflect.Slice:
+			l.quote = true
 		case reflect.String:
 			l.quote = true
 		default:
@@ -177,13 +182,21 @@ func settag(rf reflect.Value, t *m3u.Tag, quote bool) {
 				t.Flag = map[string]m3u.Value{}
 			}
 			for _, label := range sym.names {
-				attr := tostring(rf.Field(sym.field[label.name].index))
+				sf := sym.field[label.name]
+				attr := tostring(rf.Field(sf.index), label.omitempty)
 				if attr == "" {
 					continue
 				}
-				t.Keys = append(t.Keys, label.name)
-				t.Flag[label.name] = m3u.Value{V: attr, Quote: label.quote}
+				if label.name == "$file" {
+					t.Line = append(t.Line, attr)
+				} else if strings.HasPrefix(label.name, "$") {
+					t.Arg = append(t.Arg, m3u.Value{V: attr, Quote: false})
+				} else {
+					t.Keys = append(t.Keys, label.name)
+					t.Flag[label.name] = m3u.Value{V: attr, Quote: label.quote}
+				}
 			}
+			return
 		default:
 			return
 		}
@@ -191,8 +204,8 @@ func settag(rf reflect.Value, t *m3u.Tag, quote bool) {
 	t.Arg = append(t.Arg, w)
 }
 
-func tostring(rf reflect.Value) string {
-	if rf.IsZero() {
+func tostring(rf reflect.Value, omitempty bool) string {
+	if omitempty && rf.IsZero() {
 		return ""
 	}
 	switch t := rf.Interface().(type) {
@@ -200,6 +213,11 @@ func tostring(rf reflect.Value) string {
 		if t {
 			return "YES"
 		}
+		return "NO"
+	case []string:
+		return strings.Join(t, ",")
+	case image.Point:
+		return fmt.Sprintf("%dx%d", t.X, t.Y)
 	case time.Time:
 		return fmt.Sprint(t.Format(time.RFC3339Nano))
 	case time.Duration:
@@ -235,9 +253,13 @@ func compileDec(rf reflect.Value) func(reflect.Value, m3u.Tag, string) {
 		}
 	case bool:
 		return func(rf reflect.Value, t m3u.Tag, key string) {
-			val := t.Value(key)
-			if val != "NO" && val != "FALSE" {
+			if key == "" {
 				rf.SetBool(true)
+			} else {
+				val := t.Value(key)
+				if val != "NO" && val != "FALSE" && val != "" {
+					rf.SetBool(true)
+				}
 			}
 		}
 	case float32, float64:
