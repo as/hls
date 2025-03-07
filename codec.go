@@ -52,6 +52,12 @@ func marshalTag(s reflect.Value) ([]m3u.Tag, error) {
 				})
 			}
 			tags = append(tags, extratags...)
+		} else if label.aggr {
+			for i := 0; i < val.Len(); i++ {
+				t := m3u.Tag{Name: label.name}
+				settag(val.Index(i), &t, label.quote)
+				tags = append(tags, t)
+			}
 		} else {
 			t := m3u.Tag{Name: label.name}
 			settag(val, &t, label.quote)
