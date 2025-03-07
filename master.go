@@ -15,7 +15,7 @@ type Master struct {
 	M3U         bool         `hls:"EXTM3U" json:",omitempty"`
 	Version     int          `hls:"EXT-X-VERSION" json:",omitempty"`
 	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty" json:",omitempty"`
-	Steering Steering  `hls:"EXT-X-CONTENT-STEERING,omitempty" json:",omitempty"`
+	Steering    Steering     `hls:"EXT-X-CONTENT-STEERING,omitempty" json:",omitempty"`
 	Media       []MediaInfo  `hls:"EXT-X-MEDIA,aggr,omitempty" json:",omitempty"`
 	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF,aggr,omitempty" json:",omitempty"`
 	IFrame      []StreamInfo `hls:"EXT-X-I-FRAME-STREAM-INF,aggr,omitempty" json:",omitempty"`
@@ -68,22 +68,25 @@ func (m *Master) Len() int {
 }
 
 type Steering struct {
-	URI        string `hls:"SERVER-URI,omitempty" json:",omitempty"`
-	Pathway  string `hls:"PATHWAY-ID,omitempty" json:",omitempty"`
+	URI     string `hls:"SERVER-URI,omitempty" json:",omitempty"`
+	Pathway string `hls:"PATHWAY-ID,omitempty" json:",omitempty"`
 }
 
 type MediaInfo struct {
-	Type       string `hls:"TYPE,noquote,omitempty" json:",omitempty"`
-	Group      string `hls:"GROUP-ID,omitempty" json:",omitempty"`
-	Name       string `hls:"NAME,omitempty" json:",omitempty"`
-	Default    bool   `hls:"DEFAULT" json:",omitempty"`
-	Autoselect bool   `hls:"AUTOSELECT" json:",omitempty"`
-	Character     []string   `hls:"CHARACTERISTICS" json:",omitempty"`
-	Codecs       []string    `hls:"CODECS,omitempty" json:",omitempty"`
-	Lang       string `hls:"LANGUAGE,omitempty" json:",omitempty"`
-	Instream   string `hls:"INSTREAM-ID,omitempty" json:",omitempty"`
-	Channels   string `hls:"CHANNELS,omitempty" json:",omitempty"`
-	URI        string `hls:"URI,omitempty" json:",omitempty"`
+	Type       string   `hls:"TYPE,noquote,omitempty" json:",omitempty"`
+	Group      string   `hls:"GROUP-ID,omitempty" json:",omitempty"`
+	Name       string   `hls:"NAME,omitempty" json:",omitempty"`
+	StableID   string   `hls:"STABLE-RENDITION-ID,omitempty" json:",omitempty"`
+	Default    bool     `hls:"DEFAULT" json:",omitempty"`
+	Autoselect bool     `hls:"AUTOSELECT" json:",omitempty"`
+	Character  []string `hls:"CHARACTERISTICS" json:",omitempty"`
+	Codecs     []string `hls:"CODECS,omitempty" json:",omitempty"`
+	Lang       string   `hls:"LANGUAGE,omitempty" json:",omitempty"`
+	Instream   string   `hls:"INSTREAM-ID,omitempty" json:",omitempty"`
+	Bitdepth   int      `hls:"BIT-DEPTH,omitempty" json:",omitempty"`
+	Samplerate int      `hls:"SAMPLE-RATE,omitempty" json:",omitempty"`
+	Channels   string   `hls:"CHANNELS,omitempty" json:",omitempty"`
+	URI        string   `hls:"URI,omitempty" json:",omitempty"`
 }
 
 type StreamInfo struct {
@@ -108,7 +111,7 @@ type StreamInfo struct {
 	Caption string `hls:"CLOSED-CAPTIONS,ambiguous,omitempty" json:",omitempty"`
 
 	// URI is only set in IFrame stream infos
-	URI        string `hls:"URI,omitempty" json:",omitempty"`
+	URI string `hls:"URI,omitempty" json:",omitempty"`
 }
 
 // Location returns the stream URL relative to base. It conditionally
