@@ -62,7 +62,11 @@ func (t Tag) String() string {
 		sep = ","
 	}
 	for _, k := range t.Keys {
-		s += sep + fmt.Sprintf("%s=%s", k, t.Flag[k])
+		v := t.Flag[k]
+		if k == "CLOSED-CAPTIONS" && v.V == "NONE" {
+			v.Quote = false
+		}
+		s += sep + fmt.Sprintf("%s=%s", k, v)
 		sep = ","
 	}
 	s = strings.TrimSuffix(s, ",")

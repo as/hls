@@ -141,5 +141,4 @@ var sampleCue = `
 #EXT-X-CUE-IN
 #EXTINF:4.208333,
 8.m4s
-#EXT-X-ENDLIST
 `

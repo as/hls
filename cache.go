@@ -118,6 +118,7 @@ func parselabel(sf reflect.StructField) *label {
 	}
 	a := strings.Split(v, ",")
 	l := label{name: a[0]}
+	crc := 0
 	for _, extra := range a[1:] {
 		switch extra {
 		case "omitempty":
@@ -125,7 +126,22 @@ func parselabel(sf reflect.StructField) *label {
 		case "embed":
 			l.embed = true
 		case "quote":
+			crc++
 			l.quote = true
+		case "noquote":
+			crc++
+			l.quote = false
+		}
+	}
+	if crc > 1 {
+		panic(fmt.Sprintf("hls tag in struct field %s: quote/noquote specified more than once", sf.Name))
+	}
+	if crc == 0 {
+		switch sf.Type.Kind() {
+		case reflect.String:
+			l.quote = true
+		default:
+			l.quote = false
 		}
 	}
 	return &l

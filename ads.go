@@ -14,8 +14,8 @@ type AD struct {
 	CueAdobe           CueAdobe  `hls:"EXT-X-CUE,omitempty" json:",omitempty"`
 	SCTE35             SCTE35    `hls:"EXT-X-SCTE35,omitempty" json:",omitempty"`
 	DateRange          DateRange `hls:"EXT-X-DATERANGE,omitempty" json:",omitempty"`
-	SCTE35Splice       string    `hls:"EXT-X-SPLICEPOINT-SCTE35,omitempty" json:",omitempty"`
-	SCTE35OatclsSplice string    `hls:"EXT-OATCLS-SCTE35,omitempty" json:",omitempty"`
+	SCTE35Splice       string    `hls:"EXT-X-SPLICEPOINT-SCTE35,noquote,omitempty" json:",omitempty"`
+	SCTE35OatclsSplice string    `hls:"EXT-OATCLS-SCTE35,noquote,omitempty" json:",omitempty"`
 }
 
 // IsAD returns true if the segment looks like an AD-break. This currently only handles
@@ -122,9 +122,9 @@ type DateRange struct {
 	End      time.Time     `hls:"END-DATE,omitempty" json:",omitempty"`
 	Duration time.Duration `hls:"DURATION" json:",omitempty"`
 	Planned  time.Duration `hls:"PLANNED-DURATION" json:",omitempty"`
-	CueIn    string        `hls:"SCTE35-IN,omitempty" json:",omitempty"`
-	CueOut   string        `hls:"SCTE35-OUT,omitempty" json:",omitempty"`
-	Cmd      string        `hls:"SCTE35-CMD,omitempty" json:",omitempty"`
+	CueIn    string        `hls:"SCTE35-IN,noquote,omitempty" json:",omitempty"`
+	CueOut   string        `hls:"SCTE35-OUT,noquote,omitempty" json:",omitempty"`
+	Cmd      string        `hls:"SCTE35-CMD,noquote,omitempty" json:",omitempty"`
 	EndNext  bool          `hls:"END-ON-NEXT,omitempty" json:",omitempty"`
 }
 
