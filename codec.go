@@ -22,20 +22,28 @@ func marshalTag(s reflect.Value) ([]m3u.Tag, error) {
 	// all of these will be tags themselves
 	tags := []m3u.Tag{}
 	for _, label := range sym.names {
-		val := s.Field(sym.field[label.name].index)
+		f := sym.field[label.name]
+		val := s.Field(f.index)
 		if label.omitempty && val.IsZero() {
 			continue
+		}
+		if f.kid != nil {
+			val = val.Elem().Field(f.kid.index)
+			//			fmt.Printf("label=%s %d->%d got embed of type %T\n", label.name, f.index, f.kid.index, val.Interface())
+			if label.omitempty && val.IsZero() {
+				continue
+			}
 		}
 		if label.name == "*" {
 			extra, _ := val.Interface().(map[string]interface{})
 			extratags := []m3u.Tag{}
 			for k, v := range extra {
-				if t, ok := v.(m3u.Tag); ok{
+				if t, ok := v.(m3u.Tag); ok {
 					extratags = append(extratags, t)
 					continue
 				}
 				t := m3u.Tag{Name: k}
-				settag(reflect.ValueOf(v), &t)
+				settag(reflect.ValueOf(v), &t, false)
 				extratags = append(extratags, t)
 			}
 			if len(extratags) > 0 {
@@ -46,7 +54,7 @@ func marshalTag(s reflect.Value) ([]m3u.Tag, error) {
 			tags = append(tags, extratags...)
 		} else {
 			t := m3u.Tag{Name: label.name}
-			settag(val, &t)
+			settag(val, &t, label.quote)
 			tags = append(tags, t)
 		}
 	}
@@ -63,6 +71,15 @@ func unmarshalTag(s reflect.Value, t ...m3u.Tag) reflect.Value {
 		if ok && f.set != nil {
 			f.set(s.Elem().Field(f.index), t, "")
 		}
+		if ok && f.kid != nil {
+			ptr := s.Elem().Field(f.index)
+			if ptr.IsZero() {
+				z := reflect.New(ptr.Type().Elem())
+				ptr.Set(z)
+			}
+			//fmt.Printf("set %#v field %d\n", ptr, f.kid.index)
+			f.kid.set(ptr.Elem().Field(f.kid.index), t, "")
+		}
 		if !ok {
 			file, ok := s.Interface().(extra)
 			if ok {
@@ -71,7 +88,7 @@ func unmarshalTag(s reflect.Value, t ...m3u.Tag) reflect.Value {
 					tag := new()
 					unmarshalAttr(tag, t)
 					file.AddExtra(t.Name, tag.Interface())
-				} 
+				}
 			}
 		}
 	}

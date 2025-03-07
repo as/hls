@@ -39,7 +39,6 @@ func init() {
 	m2.Decode(strings.NewReader(sampleFrag))
 	m3 := Media{}
 	m3.Decode(strings.NewReader(sampleCue))
-
 }
 
 var sampleMedia = `
@@ -142,5 +141,4 @@ var sampleCue = `
 #EXT-X-CUE-IN
 #EXTINF:4.208333,
 8.m4s
-#EXT-X-ENDLIST
 `

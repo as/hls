@@ -54,9 +54,9 @@ func Decode(r io.Reader) (t []m3u.Tag, master bool, err error) {
 type Master struct {
 	M3U         bool         `hls:"EXTM3U" json:",omitempty"`
 	Version     int          `hls:"EXT-X-VERSION" json:",omitempty"`
-	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS" json:",omitempty"`
-	Media       []MediaInfo  `hls:"EXT-X-MEDIA" json:",omitempty"`
-	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF" json:",omitempty"`
+	Independent bool         `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty" json:",omitempty"`
+	Media       []MediaInfo  `hls:"EXT-X-MEDIA,omitempty" json:",omitempty"`
+	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF,omitempty" json:",omitempty"`
 }
 
 // Decode decodes the master playlist into m.
@@ -101,7 +101,7 @@ type MediaHeader struct {
 	Version       int           `hls:"EXT-X-VERSION" json:",omitempty"`
 	Independent   bool          `hls:"EXT-X-INDEPENDENT-SEGMENTS,omitempty" json:",omitempty"`
 	Type          string        `hls:"EXT-X-PLAYLIST-TYPE,omitempty" json:",omitempty"`
-	Target        time.Duration `hls:"EXT-X-TARGETDURATION" json:",omitempty"`
+	Target        time.Duration `hls:"EXT-X-TARGETDURATION,omitempty" json:",omitempty"`
 	Start         Start         `hls:"EXT-X-START,omitempty" json:",omitempty"`
 	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE,omitempty" json:",omitempty"`
 	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE,omitempty" json:",omitempty"`
@@ -193,6 +193,11 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 	if t, err = marshalTag0(m.MediaHeader); err != nil {
 		return t, err
 	}
+	var trailer []m3u.Tag
+	if len(t) > 0 && t[len(t)-1].Name == "EXT-X-ENDLIST" {
+		trailer = append(trailer, t[len(t)-1])
+		t = t[:len(t)-1]
+	}
 	for _, v := range m.File {
 		tmp, err := marshalTag0(v)
 		t = append(t, tmp...)
@@ -200,7 +205,7 @@ func (m Media) EncodeTag() (t []m3u.Tag, err error) {
 			return t, err
 		}
 	}
-	return t, err
+	return append(t, trailer...), err
 }
 
 type File struct {
@@ -213,17 +218,11 @@ type File struct {
 	Key           Key       `hls:"EXT-X-KEY,omitempty" json:",omitempty"`
 
 	// Asset and other AD-related insertion fields. Most of these can be used to signal
-	// AD-insertion and many are redundant.
-	Asset              m3u.Tag   `hls:"EXT-X-ASSET,omitempty" json:",omitempty"`
-	PlacementOpp       bool      `hls:"EXT-X-PLACEMENT-OPPORTUNITY,omitempty" json:",omitempty"`
-	CueOut             Cue       `hls:"EXT-X-CUE-OUT,omitempty" json:",omitempty"`
-	CueCont            Cue       `hls:"EXT-X-CUE-OUT-CONT,omitempty" json:",omitempty"`
-	CueIn              Cue       `hls:"EXT-X-CUE-IN,omitempty" json:",omitempty"`
-	CueAdobe           CueAdobe  `hls:"EXT-X-CUE,omitempty" json:",omitempty"`
-	SCTE35             SCTE35    `hls:"EXT-X-SCTE35,omitempty" json:",omitempty"`
-	DateRange          DateRange `hls:"EXT-X-DATERANGE,omitempty" json:",omitempty"`
-	SCTE35Splice       string    `hls:"EXT-X-SPLICEPOINT-SCTE35,omitempty" json:",omitempty"`
-	SCTE35OatclsSplice string    `hls:"EXT-OATCLS-SCTE35,omitempty" json:",omitempty"`
+	// AD-insertion and many are redundant. The decoder only initializes [AD] if any of
+	// its tags are detected during decoding.
+	Asset        m3u.Tag `hls:"EXT-X-ASSET,omitempty" json:",omitempty"`
+	PlacementOpp bool    `hls:"EXT-X-PLACEMENT-OPPORTUNITY,omitempty" json:",omitempty"`
+	AD           *AD     `hls:",embed,omitempty" json:",omitempty"`
 
 	Extra map[string]interface{} `hls:"*,omitempty" json:",omitempty"`
 	Inf   Inf                    `hls:"EXTINF" json:",omitempty"`
@@ -233,52 +232,7 @@ type File struct {
 // the three standard EXT-X-CUE-OUT, EXT-X-CUE-OUT-CONT, and EXT-X-CUE-IN
 // tags. Examine the SCTE35 fields manually to handle other formats
 func (f *File) IsAD() bool {
-	return f.CueOut.IsAD() || f.CueCont.IsAD() || f.CueOut.IsAD()
-}
-
-// Cue returns the value of the EXT-X-CUE-OUT, EXT-X-CUE-OUT-CONT,
-// and EXT-X-CUE-IN tags. The Cue.Kind field is set to "in", "out", "cont" or
-// the empty string if there is no queue.
-//
-// The SCTE35 field is set to the OatcltSplice or SCTE35Splice field in the File
-// if not set in the Cue natively. This can be in binary, hex, or base64 format.
-//
-// Use: github.com/as/scte35.Parse(...) to decode the bitstream
-//
-// Example:
-//
-// if f.IsAD() { fmt.Println("cue is", f.Cue()) }
-func (f *File) Cue() (c Cue) {
-	defer func() {
-		if !c.Set || c.SCTE35 != "" {
-			return
-		}
-		for _, splice := range []string{c.SCTE35, f.SCTE35OatclsSplice, f.SCTE35Splice} {
-			if splice != "" {
-				c.SCTE35 = splice
-				return
-			}
-		}
-	}()
-	c = f.CueOut
-	if c.IsAD() {
-		c.Set = true
-		c.Kind = "out"
-		return c
-	}
-	c = f.CueCont
-	if c.IsAD() {
-		c.Set = true
-		c.Kind = "cont"
-		return c
-	}
-	c = f.CueIn
-	if c.IsAD() {
-		c.Set = true
-		c.Kind = "in"
-		return c
-	}
-	return c
+	return f.AD.IsAD()
 }
 
 func (f *File) AddExtra(tag string, value interface{}) {
@@ -342,13 +296,17 @@ func (r Range) Value(n int) (at, size int, err error) {
 }
 
 type Key struct {
-	Method string `hls:"METHOD" json:",omitempty"`
-	URI    string `hls:"URI" json:",omitempty"`
-	IV     string `hls:"IV" json:",omitempty"`
+	Method   string `hls:"METHOD,noquote" json:",omitempty"`
+	URI      string `hls:"URI,omitempty" json:",omitempty"`
+	IV       string `hls:"IV,omitempty" json:",omitempty"`
+	Format   string `hls:"KEYFORMAT,omitempty" json:",omitempty"`
+	Versions string `hls:"KEYFORMATVERSIONS,omitempty" json:",omitempty"`
 }
 
 type Map struct {
-	URI string `hls:"URI" json:",omitempty"`
+	URI       string `hls:"URI,omitempty" json:",omitempty"`
+	Byterange string `hls:"BYTERANGE,omitempty" json:",omitempty"`
+	CC        string `hls:"CLOSED-CAPTIONS,omitempty" json:",omitempty"`
 }
 
 type Start struct {
@@ -380,32 +338,38 @@ func (h Inf) settag(t *m3u.Tag) {
 }
 
 type MediaInfo struct {
-	Type       string `hls:"TYPE" json:",omitempty"`
-	Group      string `hls:"GROUP-ID" json:",omitempty"`
-	Name       string `hls:"NAME" json:",omitempty"`
+	Type       string `hls:"TYPE,noquote" json:",omitempty"`
+	Group      string `hls:"GROUP-ID,omitempty" json:",omitempty"`
+	Name       string `hls:"NAME,omitempty" json:",omitempty"`
 	Default    bool   `hls:"DEFAULT" json:",omitempty"`
 	Autoselect bool   `hls:"AUTOSELECT" json:",omitempty"`
-	Forced     bool   `hls:"FORCED" json:",omitempty"`
-	Lang       string `hls:"LANGUAGE" json:",omitempty"`
-	URI        string `hls:"URI" json:",omitempty"`
+	Forced     bool   `hls:"FORCED,omitempty" json:",omitempty"`
+	Lang       string `hls:"LANGUAGE,omitempty" json:",omitempty"`
+	URI        string `hls:"URI,omitempty" json:",omitempty"`
+	Instream   string `hls:"INSTREAM-ID,omitempty" json:",omitempty"`
+	Channels   string `hls:"CHANNELS,omitempty" json:",omitempty"`
 }
 
 type StreamInfo struct {
 	URL string `hls:"$file" json:",omitempty"`
 
-	Index        int         `hls:"PROGRAM-ID" json:",omitempty"`
-	Framerate    float64     `hls:"FRAME-RATE" json:",omitempty"`
-	Bandwidth    int         `hls:"BANDWIDTH" json:",omitempty"`
-	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH" json:",omitempty"`
-	Codecs       []string    `hls:"CODECS" json:",omitempty"`
+	Index        int         `hls:"PROGRAM-ID,omitempty" json:",omitempty"`
+	Framerate    float64     `hls:"FRAME-RATE,omitempty" json:",omitempty"`
+	Bandwidth    int         `hls:"BANDWIDTH,omitempty" json:",omitempty"`
+	BandwidthAvg int         `hls:"AVERAGE-BANDWIDTH,omitempty" json:",omitempty"`
+	Codecs       []string    `hls:"CODECS,omitempty" json:",omitempty"`
 	Resolution   image.Point `hls:"RESOLUTION" json:",omitempty"`
-	VideoRange   string      `hls:"VIDEO-RANGE" json:",omitempty"`
-	HDCP         string      `hls:"HDCP-LEVEL" json:",omitempty"`
+	VideoRange   string      `hls:"VIDEO-RANGE,noquote,omitempty" json:",omitempty"`
+	HDCP         string      `hls:"HDCP-LEVEL,noquote,omitempty" json:",omitempty"`
 
-	Audio    string `hls:"AUDIO" json:",omitempty"`
-	Video    string `hls:"VIDEO" json:",omitempty"`
-	Subtitle string `hls:"SUBTITLES" json:",omitempty"`
-	Caption  string `hls:"CLOSED-CAPTIONS" json:",omitempty"`
+	Audio    string `hls:"AUDIO,omitempty" json:",omitempty"`
+	Video    string `hls:"VIDEO,omitempty" json:",omitempty"`
+	Subtitle string `hls:"SUBTITLES,omitempty" json:",omitempty"`
+	Pathway  string `hls:"PATHWAY-ID,omitempty" json:",omitempty"`
+
+	// Caption is unquoted if the value is NONE, this absolute mess of a datatype
+	// is handled explicitly in m3u/m3u.go:/CLOSED-CAPTIONS/
+	Caption string `hls:"CLOSED-CAPTIONS,ambiguous,omitempty" json:",omitempty"`
 }
 
 // Location returns the stream URL relative to base. It conditionally

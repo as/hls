@@ -50,19 +50,23 @@ func (t Tag) String() string {
 		return s
 	}
 	sep := ":"
-	if t.Name == "#"{
+	if t.Name == "#" {
 		sep = ""
 	}
 	for _, v := range t.Arg {
 		val := v.String()
-		if val == ""{
+		if val == "" {
 			continue
 		}
 		s += sep + val
 		sep = ","
 	}
 	for _, k := range t.Keys {
-		s += sep + fmt.Sprintf("%s=%s", k, t.Flag[k])
+		v := t.Flag[k]
+		if k == "CLOSED-CAPTIONS" && v.V == "NONE" {
+			v.Quote = false
+		}
+		s += sep + fmt.Sprintf("%s=%s", k, v)
 		sep = ","
 	}
 	s = strings.TrimSuffix(s, ",")
@@ -79,15 +83,11 @@ func (t Tag) String() string {
 type Value struct {
 	V     string
 	Quote bool
-	Wrap  bool
 }
 
 func (v Value) String() string {
 	if v.Quote {
 		return fmt.Sprintf("%q", v.V)
-	}
-	if v.Wrap {
-		return "\n" + v.V
 	}
 	return v.V
 }

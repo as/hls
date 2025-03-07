@@ -72,6 +72,11 @@ func TestDecodeMedia(t *testing.T) {
 	if m.Version != 3 {
 		t.Fatalf("version: %v", m.Version)
 	}
+	for i := range m.File {
+		if m.File[i].AD != nil {
+			t.Fatal("ad break allocated extraneously")
+		}
+	}
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("mismatch:\n\t\thave: %#v\n\t\twant: %#v", m, want)
 	}
@@ -88,13 +93,16 @@ func TestDecodeValidation(t *testing.T) {
 	}
 }
 func BenchmarkDecodeMaster(b *testing.B) {
+	b.SetBytes(int64(len(sampleMaster)))
 	benchDecode(b, &Master{}, strings.NewReader(sampleMaster))
 }
 func BenchmarkDecodeMedia(b *testing.B) {
+	b.SetBytes(int64(len(sampleMedia)))
 	benchDecode(b, &Media{}, strings.NewReader(sampleMedia))
 }
 
 func benchDecode(b *testing.B, dst interface{ Decode(io.Reader) error }, src io.ReadSeeker) {
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		src.Seek(0, 0)
 		dst.Decode(src)
