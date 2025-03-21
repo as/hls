@@ -12,6 +12,8 @@ import (
 type Media struct {
 	MediaHeader
 	File []File `hls:"" json:",omitempty"`
+
+	URL string `json:",omitempty"`
 }
 
 type MediaHeader struct {
@@ -24,6 +26,11 @@ type MediaHeader struct {
 	Sequence      int           `hls:"EXT-X-MEDIA-SEQUENCE,omitempty" json:",omitempty"`
 	Discontinuity int           `hls:"EXT-X-DISCONTINUITY-SEQUENCE,omitempty" json:",omitempty"`
 	End           bool          `hls:"EXT-X-ENDLIST,omitempty" json:",omitempty"`
+}
+
+// Path is Path
+func (m Media) Path(parent string) string {
+	return pathof(parent, m.URL)
 }
 
 // Decode decodes the playlist in r and stores the

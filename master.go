@@ -19,6 +19,8 @@ type Master struct {
 	Media       []MediaInfo  `hls:"EXT-X-MEDIA,aggr,omitempty" json:",omitempty"`
 	Stream      []StreamInfo `hls:"EXT-X-STREAM-INF,aggr,omitempty" json:",omitempty"`
 	IFrame      []StreamInfo `hls:"EXT-X-I-FRAME-STREAM-INF,aggr,omitempty" json:",omitempty"`
+
+	URL string `json:",omitempty"`
 }
 
 // Decode decodes the master playlist into m.
@@ -114,10 +116,36 @@ type StreamInfo struct {
 	URI string `hls:"URI,omitempty" json:",omitempty"`
 }
 
+// Path is Path
+func (m Master) Path(parent string) string {
+	return pathof(parent, m.URL)
+}
+
+// Path is Path
+func (m MediaInfo) Path(parent string) string {
+	return pathof(parent, m.URI)
+}
+
 // Location returns the stream URL relative to base. It conditionally
 // applies the base URL in cases where the stream URL is a relative
 // path. Base may be nil. This function never returns nil, but may
 // return an empty URL. For error handling, process s.URLmanually.
 func (s StreamInfo) Location(base *url.URL) *url.URL {
 	return location(base, s.URL)
+}
+
+// Path is like Location, except its not a pain to use. It returns the path to
+// the stream given an optional parent master path. If parent ends in a slash
+// we assume parent is just the current working directory, otherwise the base
+// name is stripped.
+func (s StreamInfo) Path(parent string) string {
+	if s.URI != "" {
+		return pathof(parent, s.URI)
+	}
+	return pathof(parent, s.URL)
+}
+
+// Path is Path
+func (s Steering) Path(parent string) string {
+	return pathof(parent, s.URI)
 }

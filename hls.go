@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/as/hls/m3u"
@@ -63,4 +64,23 @@ func location(base *url.URL, ref string) *url.URL {
 		return u
 	}
 	return base.ResolveReference(u)
+}
+
+// pathof is like location, except its not a pain to use. it returns the path to
+// the file given an optional parent  path. If parent ends in a slash
+// we assume parent is just the current working directory, otherwise the base
+// name is stripped.
+func pathof(parent string, self string) string {
+	if strings.HasPrefix(self, "http://") {
+		return self
+	}
+	base, err := url.Parse(parent)
+	if base == nil {
+		base = &url.URL{}
+	}
+	u, err := url.Parse(self)
+	if err != nil {
+		return self
+	}
+	return base.ResolveReference(u).String()
 }

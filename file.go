@@ -42,13 +42,21 @@ func (f *File) IsAD() bool {
 // applies the base URL in cases where the media URL is a relative
 // path. Base may be nil. This function never returns nil, but may
 // return an empty URL. For error handling, process f.Inf.URL manually
+//
+// NOTE: Don't use this, use File.Path instead
 func (f File) Location(base *url.URL) (u *url.URL) {
 	return location(base, f.Inf.URL)
+}
+
+func (f *File) Path(parent string) string {
+	return pathof(parent, f.Inf.URL)
 }
 
 // Init returns the initialization segment for fragmented mp4 files
 // as an absolute url relative to base. If there is no initialization
 // segment it returns an empty URL.
+//
+// NOTE: Don't use this, use File.Map.Path instead
 func (f File) Init(base *url.URL) *url.URL {
 	u := f.Map.URI
 	if u == "" {
@@ -90,9 +98,17 @@ type Key struct {
 	Versions string `hls:"KEYFORMATVERSIONS,omitempty" json:",omitempty"`
 }
 
+func (m *Key) Path(parent string) string {
+	return pathof(parent, m.URI)
+}
+
 type Map struct {
 	URI       string `hls:"URI,omitempty" json:",omitempty"`
 	Byterange string `hls:"BYTERANGE,omitempty" json:",omitempty"`
+}
+
+func (m *Map) Path(parent string) string {
+	return pathof(parent, m.URI)
 }
 
 type Start struct {
