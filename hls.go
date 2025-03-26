@@ -71,6 +71,9 @@ func location(base *url.URL, ref string) *url.URL {
 // we assume parent is just the current working directory, otherwise the base
 // name is stripped.
 func pathof(parent string, self string) string {
+	if self == "" {
+		return ""
+	}
 	if strings.HasPrefix(self, "http://") {
 		return self
 	}
